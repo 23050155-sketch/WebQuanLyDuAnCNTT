@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết dự án</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="projectTitle">📊 Chi tiết dự án</h1>
+            <button onclick="window.location.href='index.html'" class="btn-back">← Quay lại</button>
+        </div>
+
+        <!-- Thông tin dự án -->
+        <div class="project-info" id="projectInfo"></div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tasks">📋 Công việc</button>
+            <button class="tab-btn" data-tab="members">👥 Thành viên</button>
+            <button class="tab-btn" data-tab="estimates">💰 Ước lượng chi phí</button>
+        </div>
+
+        <!-- Nội dung tabs -->
+        <div id="tasksTab" class="tab-content active">
+            <div class="section-header">
+                <h2>Công việc</h2>
+                <button id="addTaskBtn" class="btn-small">+ Thêm công việc</button>
+            </div>
+            <div id="tasksList" class="tasks-list"></div>
+        </div>
+
+        <div id="membersTab" class="tab-content">
+            <div class="section-header">
+                <h2>Thành viên</h2>
+                <button id="addMemberBtn" class="btn-small">+ Thêm thành viên</button>
+            </div>
+            <div id="membersList" class="members-list"></div>
+        </div>
+
+        <div id="estimatesTab" class="tab-content">
+            <div class="section-header">
+                <h2>Ước lượng chi phí</h2>
+                <button id="addEstimateBtn" class="btn-small">+ Thêm ước lượng</button>
+            </div>
+            <div id="estimatesSummary" class="summary-card"></div>
+            <div id="estimatesList" class="estimates-list"></div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/project.js"></script>
+</body>
+</html>

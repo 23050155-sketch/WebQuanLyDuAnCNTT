@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Quản lý dự án</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h1>🔐 Đăng nhập</h1>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Tên đăng nhập</label>
+                    <input type="text" id="username" required placeholder="Nhập username">
+                </div>
+                <div class="form-group">
+                    <label>Mật khẩu</label>
+                    <input type="password" id="password" required placeholder="Nhập mật khẩu">
+                </div>
+                <div id="loginError" class="error-message"></div>
+                <button type="submit" class="btn-primary">Đăng nhập</button>
+                <button type="button" onclick="window.location.href='index.html'" class="btn-secondary">Quay lại</button>
+            </form>
+        </div>
+    </div>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+</body>
+</html>

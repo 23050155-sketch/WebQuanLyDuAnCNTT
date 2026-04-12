@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo dự án - Quản lý dự án</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📁 Tạo dự án mới</h1>
+            <button onclick="window.location.href='index.html'" class="btn-back">← Quay lại</button>
+        </div>
+
+        <div class="form-container">
+            <form id="createProjectForm">
+                <div class="form-group">
+                    <label>Mã dự án *</label>
+                    <input type="text" id="project_id" required placeholder="VD: PRJ-001" pattern="PRJ-\d{3}">
+                    <small>Định dạng: PRJ-001, PRJ-002, ...</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Tên dự án *</label>
+                    <input type="text" id="project_name" required placeholder="Nhập tên dự án">
+                </div>
+
+                <div class="form-group">
+                    <label>Phòng ban *</label>
+                    <input type="text" id="department" required placeholder="Phòng/Công ty">
+                </div>
+
+                <div class="form-group">
+                    <label>Mô tả</label>
+                    <textarea id="description" rows="4" placeholder="Mô tả chi tiết về dự án"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ngày bắt đầu</label>
+                        <input type="date" id="start_date">
+                    </div>
+                    <div class="form-group">
+                        <label>Ngày kết thúc</label>
+                        <input type="date" id="end_date">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Trạng thái</label>
+                    <select id="status">
+                        <option value="planning">📋 Lên kế hoạch</option>
+                        <option value="in_progress">⚙️ Đang thực hiện</option>
+                        <option value="completed">✅ Hoàn thành</option>
+                        <option value="cancelled">❌ Hủy</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Tổng ngân sách (VNĐ)</label>
+                    <input type="number" id="total_budget" value="0">
+                </div>
+
+                <div id="formError" class="error-message"></div>
+                <div id="formSuccess" class="success-message"></div>
+
+                <button type="submit" class="btn-primary">✅ Tạo dự án</button>
+                <button type="button" onclick="window.location.href='index.html'" class="btn-secondary">Hủy</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/project.js"></script>
+</body>
+</html>

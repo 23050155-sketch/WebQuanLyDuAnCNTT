@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý dự án CNTT</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏗️ Quản lý dự án CNTT</h1>
+            <div class="user-info" id="userInfo">
+                <span id="userNameDisplay"></span>
+                <button id="logoutBtn" class="btn-logout" style="display: none;">Đăng xuất</button>
+                <button id="loginBtn" class="btn-login">Đăng nhập</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Phần tạo project -->
+            <div class="card create-card">
+                <h2>📁 Tạo dự án mới</h2>
+                <p>Tạo dự án mới để bắt đầu quản lý công việc</p>
+                <button id="createProjectBtn" class="btn-primary">+ Tạo dự án</button>
+            </div>
+
+            <!-- Phần nhập mã project -->
+            <div class="card join-card">
+                <h2>🔑 Tham gia dự án</h2>
+                <p>Nhập mã dự án để tham gia</p>
+                <div class="input-group">
+                    <input type="text" id="projectCode" placeholder="Nhập mã dự án (VD: PRJ-001)" class="input-code">
+                    <button id="joinProjectBtn" class="btn-secondary">Vào dự án</button>
+                </div>
+                <div id="joinError" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- Danh sách dự án của tôi -->
+        <div class="my-projects">
+            <h2>📋 Dự án của tôi</h2>
+            <div id="myProjectsList" class="projects-grid">
+                <!-- Danh sách sẽ hiển thị ở đây -->
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/project.js"></script>
+</body>
+</html>
