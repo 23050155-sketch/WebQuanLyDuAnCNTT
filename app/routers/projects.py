@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..core.database import get_db
-from ..services import crud_project, crud_user
+from ..services import crud_project, crud_user, crud_project_member
 from ..schemas import project as schemas
+from ..schemas import project_member as member_schemas
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -55,3 +56,23 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
     if not success:
         raise HTTPException(status_code=404, detail="Project not found")
     return {"message": "Project deleted successfully"}
+
+# ==================== THÊM ENDPOINT NÀY ====================
+@router.get("/{project_id}/members", response_model=List[member_schemas.ProjectMemberResponse])
+def get_project_members(
+    project_id: str, 
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """Lấy danh sách thành viên của dự án"""
+    # Kiểm tra dự án tồn tại
+    db_project = crud_project.get_project(db, project_id=project_id)
+    if db_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Lấy danh sách thành viên
+    members = crud_project_member.get_project_members_by_project(
+        db, project_id=project_id, skip=skip, limit=limit
+    )
+    return members

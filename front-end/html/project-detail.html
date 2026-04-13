@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết dự án</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="projectTitle">📊 Chi tiết dự án</h1>
+            <button onclick="window.location.href='/html/index.html'" class="btn-back">← Quay lại</button>
+        </div>
+
+        <!-- Thông tin dự án -->
+        <div class="project-info" id="projectInfo"></div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tasks">📋 Công việc</button>
+            <button class="tab-btn" data-tab="members">👥 Thành viên</button>
+            <button class="tab-btn" data-tab="estimates">💰 Ước lượng chi phí</button>
+        </div>
+
+        <!-- Tab Công việc -->
+        <div id="tasksTab" class="tab-content active">
+            <div class="section-header">
+                <h2>Công việc</h2>
+                <button id="addTaskBtn" class="btn-small">+ Thêm công việc</button>
+            </div>
+            <div id="tasksList" class="tasks-list"></div>
+        </div>
+
+        <!-- Tab Thành viên -->
+        <div id="membersTab" class="tab-content">
+            <div class="section-header">
+                <h2>Thành viên</h2>
+                <button id="addMemberBtn" class="btn-small">+ Thêm thành viên</button>
+            </div>
+            <div id="membersList" class="members-list"></div>
+        </div>
+
+        <!-- Tab Chi phí -->
+        <div id="estimatesTab" class="tab-content">
+            <div class="section-header">
+                <h2>Ước lượng chi phí</h2>
+                <button id="addEstimateBtn" class="btn-small">+ Thêm ước lượng</button>
+            </div>
+            <div id="estimatesSummary" class="summary-card"></div>
+            <div id="estimatesList" class="estimates-list"></div>
+        </div>
+    </div>
+
+    <!-- Modal thêm thành viên -->
+    <div id="memberModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>👥 Thêm thành viên vào dự án</h3>
+            <form id="addMemberForm">
+                <div class="form-group">
+                    <label>Chọn thành viên *</label>
+                    <select id="memberUserId" required>
+                        <option value="">-- Chọn thành viên --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Vai trò trong dự án</label>
+                    <select id="memberRole">
+                        <option value="manager">👔 Quản lý (Manager)</option>
+                        <option value="developer">💻 Developer</option>
+                        <option value="tester">🧪 Tester</option>
+                        <option value="expert">🎓 Chuyên gia (Expert)</option>
+                        <option value="viewer">👁️ Xem (Viewer)</option>
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">✅ Thêm thành viên</button>
+                    <button type="button" onclick="closeMemberModal()" class="btn-secondary">❌ Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal thêm công việc -->
+    <div id="taskModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Thêm công việc mới</h3>
+                <button class="close-modal" onclick="closeTaskModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addTaskForm">
+                    <div class="form-group">
+                        <label>Tên công việc *</label>
+                        <input type="text" id="taskName" required placeholder="Nhập tên công việc">
+                    </div>
+                    <div class="form-group">
+                        <label>Mô tả</label>
+                        <textarea id="taskDesc" rows="3" placeholder="Mô tả chi tiết công việc"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Người thực hiện (có thể chọn nhiều)</label>
+                        <select id="taskAssignees" multiple size="4" style="height: auto; min-height: 100px;">
+                            <!-- Danh sách thành viên sẽ được load bằng JS -->
+                        </select>
+                        <small class="text-muted">Giữ Ctrl (hoặc Cmd) để chọn nhiều người</small>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ngày bắt đầu</label>
+                            <input type="date" id="taskStartDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Ngày kết thúc</label>
+                            <input type="date" id="taskEndDate">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ưu tiên</label>
+                        <select id="taskPriority">
+                            <option value="low">🟢 Thấp</option>
+                            <option value="medium" selected>🟡 Trung bình</option>
+                            <option value="high">🟠 Cao</option>
+                            <option value="urgent">🔴 Khẩn cấp</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeTaskModal()">❌ Hủy</button>
+                <button type="button" class="btn-primary" onclick="addTaskToProject()">✅ Thêm công việc</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Modal sửa công việc -->
+    <div id="editTaskModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Sửa công việc</h3>
+                <button class="close-modal" onclick="closeEditTaskModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editTaskForm">
+                    <div class="form-group">
+                        <label>Tên công việc *</label>
+                        <input type="text" id="editTaskName" required placeholder="Nhập tên công việc">
+                    </div>
+                    <div class="form-group">
+                        <label>Mô tả</label>
+                        <textarea id="editTaskDesc" rows="3" placeholder="Mô tả chi tiết công việc"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Người thực hiện (có thể chọn nhiều)</label>
+                        <select id="editTaskAssignees" multiple size="4" style="height: auto; min-height: 100px;">
+                            <!-- Danh sách thành viên sẽ được load bằng JS -->
+                        </select>
+                        <small class="text-muted">Giữ Ctrl (hoặc Cmd) để chọn nhiều người</small>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ngày bắt đầu</label>
+                            <input type="date" id="editTaskStartDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Ngày kết thúc</label>
+                            <input type="date" id="editTaskEndDate">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ưu tiên</label>
+                        <select id="editTaskPriority">
+                            <option value="low">🟢 Thấp</option>
+                            <option value="medium" selected>🟡 Trung bình</option>
+                            <option value="high">🟠 Cao</option>
+                            <option value="urgent">🔴 Khẩn cấp</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Trạng thái</label>
+                        <select id="editTaskStatus">
+                            <option value="not_started">⭕ Chưa bắt đầu</option>
+                            <option value="in_progress">🔄 Đang làm</option>
+                            <option value="completed">✅ Hoàn thành</option>
+                            <option value="delayed">⚠️ Trễ hạn</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditTaskModal()">❌ Hủy</button>
+                <button type="button" class="btn-primary" onclick="confirmUpdateTask()">💾 Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal xác nhận xóa công việc -->
+    <div id="confirmDeleteTaskModal" class="modal confirm-modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Xác nhận xóa công việc</h3>
+                <button class="close-modal" onclick="closeConfirmDeleteTaskModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-icon">🗑️</div>
+                <div class="confirm-message" id="deleteTaskConfirmMessage">Bạn có chắc chắn muốn xóa công việc này?</div>
+                <div class="confirm-submessage">Hành động này không thể hoàn tác!</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeConfirmDeleteTaskModal()">❌ Hủy</button>
+                <button type="button" class="btn-danger" onclick="executeDeleteTask()">🗑️ Xóa</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Modal chỉnh sửa vai trò thành viên -->
+    <div id="editRoleModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔄 Đổi vai trò thành viên</h3>
+                <button class="close-modal" onclick="closeEditRoleModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="editMemberInfo" class="member-info-display">
+                    <!-- Thông tin thành viên sẽ được điền bằng JS -->
+                </div>
+                <form id="editRoleForm">
+                    <div class="form-group">
+                        <label>📌 Vai trò mới</label>
+                        <select id="editRoleSelect" class="form-control">
+                            <option value="manager">👔 Quản lý (Manager)</option>
+                            <option value="developer">💻 Developer</option>
+                            <option value="tester">🧪 Tester</option>
+                            <option value="expert">🎓 Chuyên gia (Expert)</option>
+                            <option value="viewer">👁️ Xem (Viewer)</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditRoleModal()">❌ Hủy</button>
+                <button type="button" class="btn-primary" onclick="confirmChangeRole()">✅ Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal xác nhận xóa thành viên -->
+    <div id="confirmDeleteModal" class="modal confirm-modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Xác nhận xóa</h3>
+                <button class="close-modal" onclick="closeConfirmDeleteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-icon">🗑️</div>
+                <div class="confirm-message" id="deleteConfirmMessage">Bạn có chắc chắn muốn xóa thành viên này?</div>
+                <div class="confirm-submessage" id="deleteConfirmSubmessage">Hành động này không thể hoàn tác!</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeConfirmDeleteModal()">❌ Hủy</button>
+                <button type="button" class="btn-danger" onclick="executeDeleteMember()">🗑️ Xóa</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toastNotification" class="toast-notification" style="display:none;">
+        <span id="toastIcon">✅</span>
+        <span id="toastMessage"></span>
+    </div>
+
+
+
+    <!-- Modal thông báo tùy chỉnh -->
+    <div id="customAlertModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <h3 style="color: white; margin: 0;">📢 Thông báo</h3>
+                <button class="close-modal" onclick="closeCustomAlert()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 32px; height: 32px; border-radius: 50%;">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 30px;">
+                <div style="font-size: 48px; margin-bottom: 15px;" id="alertIcon">✅</div>
+                <div style="font-size: 18px; font-weight: 500; color: #333; margin-bottom: 10px;" id="alertMessage">Thông báo</div>
+                <div style="font-size: 14px; color: #666;" id="alertSubMessage"></div>
+            </div>
+            <div class="modal-footer" style="justify-content: center;">
+                <button onclick="closeCustomAlert()" class="btn-primary" style="padding: 10px 30px;">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/project.js"></script>
+    <script src="/js/project-detail.js"></script>
+</body>
+</html>
