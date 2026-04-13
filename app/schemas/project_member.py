@@ -19,3 +19,10 @@ class ProjectMemberResponse(ProjectMemberBase):
 
 class ProjectMemberUpdate(BaseModel):
     role_in_project: Optional[str] = None
+
+# ==================== THÊM CLASS NÀY ====================
+class ProjectMemberDetailResponse(ProjectMemberResponse):
+    """Chi tiết thành viên kèm thông tin user"""
+    username: Optional[str] = None
+    fullname: Optional[str] = None
+    email: Optional[str] = None

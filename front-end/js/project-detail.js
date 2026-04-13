@@ -86,11 +86,14 @@ async function loadProjectDetail() {
             return;
         }
         
+        // Load vai trò của user trong project
+        await loadUserRoleInProject();
+        
         // Load thông tin project
         const project = await getProject(currentProjectCode);
         document.getElementById("projectTitle").textContent = `📊 ${project.project_name}`;
         
-        // Hiển thị thông tin dự án
+        // Hiển thị thông tin dự án (kèm role)
         document.getElementById("projectInfo").innerHTML = `
             <div class="info-grid">
                 <div class="info-item">
@@ -117,8 +120,23 @@ async function loadProjectDetail() {
                     <span class="info-label">📊 Trạng thái:</span>
                     <span class="info-value status-${project.status}">${getStatusName(project.status)}</span>
                 </div>
+                <div class="info-item">
+                    <span class="info-label">🎭 Vai trò của bạn:</span>
+                    <span class="info-value">${getRoleName(currentUserRoleInProject)}</span>
+                </div>
             </div>
         `;
+        
+        // Ẩn/hiện nút dựa trên quyền
+        const addMemberBtn = document.getElementById("addMemberBtn");
+        if (addMemberBtn) {
+            addMemberBtn.style.display = canManageMembers() ? "inline-flex" : "none";
+        }
+        
+        const addTaskBtn = document.getElementById("addTaskBtn");
+        if (addTaskBtn) {
+            addTaskBtn.style.display = canCreateTask() ? "inline-flex" : "none";
+        }
         
         // Load các tab
         await loadTasks();
@@ -130,6 +148,86 @@ async function loadProjectDetail() {
         document.getElementById("projectInfo").innerHTML = '<p class="error-message">❌ Không thể tải thông tin dự án</p>';
     }
 }
+
+
+
+
+
+// ==================== KIỂM TRA QUYỀN TRONG PROJECT ====================
+let currentUserRoleInProject = null;  // Lưu vai trò của user trong project hiện tại
+
+async function loadUserRoleInProject() {
+    try {
+        const members = await getProjectMembers(currentProjectCode);
+        const currentMember = members.find(m => m.user_id === currentUser.user_id);
+        currentUserRoleInProject = currentMember ? currentMember.role_in_project : null;
+        
+        // Nếu là người tạo project (created_by) thì set role là 'creator'
+        const project = await getProject(currentProjectCode);
+        if (project && project.created_by === currentUser.user_id) {
+            currentUserRoleInProject = 'creator';
+        }
+        
+        console.log("User role in project:", currentUserRoleInProject);
+        return currentUserRoleInProject;
+    } catch (error) {
+        console.error("Error loading user role:", error);
+        return null;
+    }
+}
+
+// Kiểm tra quyền xem
+function canView() {
+    return currentUserRoleInProject !== null;
+}
+
+// Kiểm tra quyền chỉnh sửa project (creator hoặc manager)
+function canEditProject() {
+    return currentUserRoleInProject === 'creator' || currentUserRoleInProject === 'manager';
+}
+
+// Kiểm tra quyền xóa project (chỉ creator)
+function canDeleteProject() {
+    return currentUserRoleInProject === 'creator';
+}
+
+// Kiểm tra quyền quản lý thành viên (creator hoặc manager)
+function canManageMembers() {
+    return currentUserRoleInProject === 'creator' || currentUserRoleInProject === 'manager';
+}
+
+// ==================== QUYỀN VỚI CÔNG VIỆC (TASKS) ====================
+function canViewTasks() {
+    return currentUserRoleInProject !== null;
+}
+
+function canCreateTask() {
+    return currentUserRoleInProject === 'creator' || 
+           currentUserRoleInProject === 'manager' || 
+           currentUserRoleInProject === 'developer';
+}
+
+function canEditTask() {
+    return currentUserRoleInProject === 'creator' || 
+           currentUserRoleInProject === 'manager' || 
+           currentUserRoleInProject === 'developer';
+}
+
+function canDeleteTask() {
+    // CHỈ creator và manager mới được xóa task
+    return currentUserRoleInProject === 'creator' || 
+           currentUserRoleInProject === 'manager';
+}
+
+function canChangeTaskStatus() {
+    return currentUserRoleInProject === 'creator' || 
+           currentUserRoleInProject === 'manager' || 
+           currentUserRoleInProject === 'developer' ||
+           currentUserRoleInProject === 'tester';
+}
+
+
+
 
 // ==================== QUẢN LÝ THÀNH VIÊN ====================
 async function loadMembers() {
@@ -211,7 +309,7 @@ async function loadMembers() {
                         <div class="member-role-badge">${getRoleName(member.role_in_project)}</div>
                         <div class="member-joined">📅 Tham gia: ${member.joined_at ? new Date(member.joined_at).toLocaleDateString() : new Date().toLocaleDateString()}</div>
                     </div>
-                    ${(isAdmin || currentUser?.role === "manager") && !isCurrentUser ? `
+                    ${canManageMembers() && !isCurrentUser ? `
                         <div class="member-actions">
                             <button onclick="showChangeRoleModal(${memberId}, ${userId}, '${member.role_in_project}', '${(userInfo?.fullname || `User ID: ${userId}`).replace(/'/g, "\\'")}')" class="btn-icon" title="Đổi vai trò">🔄</button>
                             <button onclick="showConfirmDeleteModal(${memberId}, '${(userInfo?.fullname || `User ID: ${userId}`).replace(/'/g, "\\'")}')" class="btn-icon btn-danger" title="Xóa thành viên">🗑️</button>
@@ -235,6 +333,10 @@ async function loadMembers() {
 
 // Hiển thị modal thêm thành viên
 function showAddMemberModal() {
+    if (!canManageMembers()) {
+        showCustomAlert("Không có quyền!", "Bạn không có quyền thêm thành viên", "❌");
+        return;
+    }
     const modal = document.getElementById("memberModal");
     if (modal) {
         modal.style.display = "flex";
@@ -474,6 +576,13 @@ async function loadTasks() {
         });
         
         container.innerHTML = tasks.map(task => {
+            // ========== SỬA Ở ĐÂY ==========
+            // Tách riêng quyền Sửa và Xóa
+            const showEditButton = canEditTask();    // Developer có thể sửa
+            const showDeleteButton = canDeleteTask(); // Developer KHÔNG thể xóa
+            const showStatusSelect = canChangeTaskStatus();
+            
+            // Lấy tên người thực hiện (hỗ trợ nhiều người)
             const assigneeIds = task.assignee_ids || (task.assignee_id ? [task.assignee_id] : []);
             const assigneeNames = assigneeIds.map(id => {
                 const member = userMap.get(id);
@@ -486,8 +595,8 @@ async function loadTasks() {
                         <h3>${escapeHtml(task.task_name)}</h3>
                         <div class="task-actions">
                             <span class="task-priority priority-${task.priority}">${getPriorityName(task.priority)}</span>
-                            <button onclick="showEditTaskModal(${task.task_id})" class="btn-icon-sm" title="Sửa">✏️</button>
-                            <button onclick="showConfirmDeleteTaskModal(${task.task_id}, '${escapeHtml(task.task_name)}')" class="btn-icon-sm btn-danger" title="Xóa">🗑️</button>
+                            ${showEditButton ? `<button onclick="showEditTaskModal(${task.task_id})" class="btn-icon-sm" title="Sửa">✏️</button>` : ''}
+                            ${showDeleteButton ? `<button onclick="showConfirmDeleteTaskModal(${task.task_id}, '${escapeHtml(task.task_name)}')" class="btn-icon-sm btn-danger" title="Xóa">🗑️</button>` : ''}
                         </div>
                     </div>
                     <div class="task-body">
@@ -498,12 +607,16 @@ async function loadTasks() {
                         </div>
                     </div>
                     <div class="task-footer">
-                        <select onchange="updateTaskStatusDirect(${task.task_id}, this.value)" class="status-select">
-                            <option value="not_started" ${task.status === 'not_started' ? 'selected' : ''}>⭕ Chưa bắt đầu</option>
-                            <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>🔄 Đang làm</option>
-                            <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>✅ Hoàn thành</option>
-                            <option value="delayed" ${task.status === 'delayed' ? 'selected' : ''}>⚠️ Trễ hạn</option>
-                        </select>
+                        ${showStatusSelect ? `
+                            <select onchange="updateTaskStatusDirect(${task.task_id}, this.value)" class="status-select">
+                                <option value="not_started" ${task.status === 'not_started' ? 'selected' : ''}>⭕ Chưa bắt đầu</option>
+                                <option value="in_progress" ${task.status === 'in_progress' ? 'selected' : ''}>🔄 Đang làm</option>
+                                <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>✅ Hoàn thành</option>
+                                <option value="delayed" ${task.status === 'delayed' ? 'selected' : ''}>⚠️ Trễ hạn</option>
+                            </select>
+                        ` : `
+                            <span class="task-status status-${task.status}">${getTaskStatusName(task.status)}</span>
+                        `}
                     </div>
                 </div>
             `;
@@ -517,6 +630,10 @@ async function loadTasks() {
 
 // Hiển thị modal thêm công việc
 function showAddTaskModal() {
+    if (!canCreateTask()) {
+        showCustomAlert("Không có quyền!", "Bạn không có quyền thêm công việc", "❌");
+        return;
+    }
     const modal = document.getElementById("taskModal");
     if (modal) {
         modal.style.display = "flex";
