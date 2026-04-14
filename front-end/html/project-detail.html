@@ -55,7 +55,7 @@
         <!-- Tab Chi phí -->
         <div id="estimatesTab" class="tab-content">
             <div class="section-header">
-                <h2>Ước lượng chi phí</h2>
+                <h2>💰 Ước lượng chi phí</h2>
                 <button id="addEstimateBtn" class="btn-small">+ Thêm ước lượng</button>
             </div>
             <div id="estimatesSummary" class="summary-card"></div>
@@ -409,6 +409,155 @@
             </div>
         </div>
     </div>
+
+
+
+
+
+    <!-- Modal thêm ước lượng chi phí -->
+<div id="costEstimateModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3>💰 Thêm ước lượng chi phí</h3>
+            <button class="close-modal" onclick="closeCostEstimateModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="addCostEstimateForm">
+                <div class="form-group">
+                    <label>Chọn công việc *</label>
+                    <select id="costEstimateTaskId" required>
+                        <option value="">-- Chọn công việc --</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>💰 Tiền công</label>
+                        <input type="number" id="laborCost" step="1000" value="0" placeholder="VNĐ">
+                    </div>
+                    <div class="form-group">
+                        <label>🖥️ Thiết bị</label>
+                        <input type="number" id="equipmentCost" step="1000" value="0" placeholder="VNĐ">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>📝 Văn phòng phẩm</label>
+                        <input type="number" id="officeSuppliesCost" step="1000" value="0" placeholder="VNĐ">
+                    </div>
+                    <div class="form-group">
+                        <label>🎓 Đào tạo/Tài liệu</label>
+                        <input type="number" id="trainingCost" step="1000" value="0" placeholder="VNĐ">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>✈️ Đi lại</label>
+                        <input type="number" id="travelCost" step="1000" value="0" placeholder="VNĐ">
+                    </div>
+                    <div class="form-group">
+                        <label>📦 Chi khác</label>
+                        <input type="number" id="otherCost" step="1000" value="0" placeholder="VNĐ">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>💰 Tổng chi phí (tự động tính)</label>
+                    <input type="number" id="totalCost" step="1000" readonly style="background:#f0f0f0; font-weight: bold; color: #28a745;">
+                </div>
+                <div class="form-group">
+                    <label>📝 Ghi chú</label>
+                    <textarea id="costEstimateNotes" rows="3" placeholder="Ghi chú thêm..."></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" onclick="closeCostEstimateModal()">❌ Hủy</button>
+            <button type="button" class="btn-primary" onclick="addCostEstimate()">✅ Lưu ước lượng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal sửa ước lượng chi phí -->
+<div id="editCostEstimateModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3>✏️ Sửa ước lượng chi phí</h3>
+            <button class="close-modal" onclick="closeEditCostEstimateModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="editCostEstimateForm">
+                <div class="form-group">
+                    <label>Công việc</label>
+                    <input type="text" id="editCostTaskName" readonly style="background:#f0f0f0;">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>💰 Tiền công</label>
+                        <input type="number" id="editLaborCost" step="1000" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>🖥️ Thiết bị</label>
+                        <input type="number" id="editEquipmentCost" step="1000" value="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>📝 Văn phòng phẩm</label>
+                        <input type="number" id="editOfficeSuppliesCost" step="1000" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>🎓 Đào tạo/Tài liệu</label>
+                        <input type="number" id="editTrainingCost" step="1000" value="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>✈️ Đi lại</label>
+                        <input type="number" id="editTravelCost" step="1000" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>📦 Chi khác</label>
+                        <input type="number" id="editOtherCost" step="1000" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>💰 Tổng chi phí (tự động tính)</label>
+                    <input type="number" id="editTotalCost" step="1000" readonly style="background:#f0f0f0; font-weight: bold; color: #28a745;">
+                </div>
+                <div class="form-group">
+                    <label>📝 Ghi chú</label>
+                    <textarea id="editCostEstimateNotes" rows="3" placeholder="Ghi chú thêm..."></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" onclick="closeEditCostEstimateModal()">❌ Hủy</button>
+            <button type="button" class="btn-primary" onclick="confirmUpdateCostEstimate()">💾 Lưu thay đổi</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal xác nhận xóa ước lượng chi phí -->
+<div id="confirmDeleteCostEstimateModal" class="modal confirm-modal" style="display:none;">
+    <div class="modal-content">
+        <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+            <h3 style="color: white; margin: 0;">⚠️ Xác nhận xóa</h3>
+            <button class="close-modal" onclick="closeConfirmDeleteCostEstimateModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align: center; padding: 30px;">
+            <div class="confirm-icon" style="font-size: 60px; margin-bottom: 20px;">💰</div>
+            <div class="confirm-message" id="deleteCostEstimateConfirmMessage" style="font-size: 18px; font-weight: 500; color: #333; margin-bottom: 10px;">
+                Xóa ước lượng chi phí?
+            </div>
+            <div class="confirm-submessage" id="deleteCostEstimateConfirmSubmessage" style="font-size: 14px; color: #666;">
+                Hành động này không thể hoàn tác!
+            </div>
+        </div>
+        <div class="modal-footer" style="justify-content: center; gap: 12px;">
+            <button type="button" class="btn-secondary" onclick="closeConfirmDeleteCostEstimateModal()">❌ Hủy</button>
+            <button type="button" class="btn-danger" id="confirmDeleteCostEstimateBtn" onclick="executeDeleteCostEstimate()">🗑️ Xóa</button>
+        </div>
+    </div>
+</div>
 
 
 

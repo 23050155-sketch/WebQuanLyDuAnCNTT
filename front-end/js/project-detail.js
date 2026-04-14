@@ -1342,6 +1342,7 @@ function getEstimateStatusName(status) {
 
 
 // ==================== QUẢN LÝ CHI PHÍ ====================
+// ==================== QUẢN LÝ CHI PHÍ ====================
 async function loadCostEstimates() {
     try {
         const summary = await getCostSummary(currentProjectCode);
@@ -1392,28 +1393,338 @@ async function loadCostEstimates() {
             return;
         }
         
-        listContainer.innerHTML = estimates.map(est => `
-            <div class="estimate-card">
-                <div class="estimate-header">
-                    <strong>Công việc #${est.task_id}</strong>
-                    <span class="estimate-status status-${est.status}">${est.status}</span>
+        // Lấy danh sách tasks để hiển thị tên công việc
+        const tasks = await getProjectTasks(currentProjectCode);
+        const taskMap = new Map();
+        tasks.forEach(task => {
+            taskMap.set(task.task_id, task);
+        });
+        
+        const isManager = currentUserRoleInProject === 'manager';
+        
+        listContainer.innerHTML = estimates.map(est => {
+            const task = taskMap.get(est.task_id);
+            const taskName = task?.task_name || `Công việc #${est.task_id}`;
+            
+            return `
+                <div class="estimate-card" data-estimate-id="${est.estimate_id}">
+                    <div class="estimate-header">
+                        <strong>📋 ${escapeHtml(taskName)}</strong>
+                        <span class="estimate-status status-${est.status}">${getCostEstimateStatusName(est.status)}</span>
+                    </div>
+                    <div class="estimate-details">
+                        <span>💰 Tiền công: ${formatCurrency(est.labor_cost)}</span>
+                        <span>🖥️ Thiết bị: ${formatCurrency(est.equipment_cost)}</span>
+                        <span>📝 Văn phòng phẩm: ${formatCurrency(est.office_supplies_cost)}</span>
+                        <span>🎓 Đào tạo: ${formatCurrency(est.training_cost)}</span>
+                        <span>✈️ Đi lại: ${formatCurrency(est.travel_cost)}</span>
+                        <span>📦 Khác: ${formatCurrency(est.other_cost)}</span>
+                    </div>
+                    <div class="estimate-total">
+                        Tổng: <strong>${formatCurrency(est.total_cost)}</strong>
+                    </div>
+                    ${est.notes ? `<div class="estimate-notes">📝 ${escapeHtml(est.notes)}</div>` : ''}
+                    <div class="estimate-footer">
+                        <div class="estimate-info">
+                            <span class="estimate-author">👤 Chuyên gia: ${est.expert_id}</span>
+                            <span class="estimate-date">📅 ${new Date(est.created_at).toLocaleDateString()}</span>
+                        </div>
+                        ${isManager ? `
+                            <div class="estimate-actions">
+                                <button onclick="showEditCostEstimateModal(${est.estimate_id})" class="btn-icon" title="Sửa">✏️ Sửa</button>
+                                <button onclick="showConfirmDeleteCostEstimateModal(${est.estimate_id}, '${escapeHtml(taskName)}')" class="btn-icon btn-danger" title="Xóa">🗑️ Xóa</button>
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
-                <div class="estimate-details">
-                    <span>💰 Tiền công: ${formatCurrency(est.labor_cost)}</span>
-                    <span>🖥️ TB: ${formatCurrency(est.equipment_cost)}</span>
-                    <span>📝 VP: ${formatCurrency(est.office_supplies_cost)}</span>
-                    <span>🎓 ĐT: ${formatCurrency(est.training_cost)}</span>
-                    <span>✈️ ĐL: ${formatCurrency(est.travel_cost)}</span>
-                </div>
-                <div class="estimate-total">
-                    Tổng: <strong>${formatCurrency(est.total_cost)}</strong>
-                </div>
-                ${est.notes ? `<div class="estimate-notes">📝 ${est.notes}</div>` : ''}
-            </div>
-        `).join("");
+            `;
+        }).join("");
         
     } catch (error) {
         console.error("Error loading cost estimates:", error);
+        const listContainer = document.getElementById("estimatesList");
+        if (listContainer) {
+            listContainer.innerHTML = '<div class="error-state">❌ Lỗi tải ước lượng chi phí</div>';
+        }
+    }
+}
+
+// Hàm lấy tên trạng thái cho cost estimate
+function getCostEstimateStatusName(status) {
+    const statuses = {
+        "draft": "📝 Nháp",
+        "submitted": "📤 Đã gửi",
+        "approved": "✅ Đã duyệt",
+        "rejected": "❌ Từ chối"
+    };
+    return statuses[status] || status;
+}
+
+// Hiển thị modal thêm ước lượng chi phí
+async function showAddCostEstimateModal() {
+    if (currentUserRoleInProject !== 'manager') {
+        showCustomAlert("Không có quyền!", "Chỉ quản lý mới có thể thêm ước lượng chi phí", "❌");
+        return;
+    }
+    
+    try {
+        const tasks = await getProjectTasks(currentProjectCode);
+        const taskSelect = document.getElementById("costEstimateTaskId");
+        if (taskSelect) {
+            taskSelect.innerHTML = '<option value="">-- Chọn công việc --</option>' + 
+                tasks.map(task => `
+                    <option value="${task.task_id}">${escapeHtml(task.task_name)}</option>
+                `).join("");
+        }
+        
+        // Reset form
+        document.getElementById("addCostEstimateForm")?.reset();
+        document.getElementById("laborCost").value = 0;
+        document.getElementById("equipmentCost").value = 0;
+        document.getElementById("officeSuppliesCost").value = 0;
+        document.getElementById("trainingCost").value = 0;
+        document.getElementById("travelCost").value = 0;
+        document.getElementById("otherCost").value = 0;
+        document.getElementById("totalCost").value = 0;
+        document.getElementById("costEstimateNotes").value = "";
+        
+        // Thêm event listeners để tính tổng
+        const costInputs = ["laborCost", "equipmentCost", "officeSuppliesCost", "trainingCost", "travelCost", "otherCost"];
+        costInputs.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.removeEventListener("input", calculateTotalCost);
+                element.addEventListener("input", calculateTotalCost);
+            }
+        });
+        
+        const modal = document.getElementById("costEstimateModal");
+        if (modal) {
+            modal.style.display = "flex";
+        }
+        
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    }
+}
+
+function closeCostEstimateModal() {
+    const modal = document.getElementById("costEstimateModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
+
+// Tính tổng chi phí
+function calculateTotalCost() {
+    const labor = parseFloat(document.getElementById("laborCost").value) || 0;
+    const equipment = parseFloat(document.getElementById("equipmentCost").value) || 0;
+    const office = parseFloat(document.getElementById("officeSuppliesCost").value) || 0;
+    const training = parseFloat(document.getElementById("trainingCost").value) || 0;
+    const travel = parseFloat(document.getElementById("travelCost").value) || 0;
+    const other = parseFloat(document.getElementById("otherCost").value) || 0;
+    
+    const total = labor + equipment + office + training + travel + other;
+    document.getElementById("totalCost").value = total;
+    return total;
+}
+
+// Thêm ước lượng chi phí
+async function addCostEstimate() {
+    const taskId = document.getElementById("costEstimateTaskId").value;
+    if (!taskId) {
+        showCustomAlert("Thiếu thông tin", "Vui lòng chọn công việc", "❌");
+        return;
+    }
+    
+    const user = getUserInfo();
+    const estimateData = {
+        project_id: currentProjectCode,
+        task_id: parseInt(taskId),
+        expert_id: user.user_id,
+        labor_cost: parseFloat(document.getElementById("laborCost").value) || 0,
+        equipment_cost: parseFloat(document.getElementById("equipmentCost").value) || 0,
+        office_supplies_cost: parseFloat(document.getElementById("officeSuppliesCost").value) || 0,
+        training_cost: parseFloat(document.getElementById("trainingCost").value) || 0,
+        travel_cost: parseFloat(document.getElementById("travelCost").value) || 0,
+        other_cost: parseFloat(document.getElementById("otherCost").value) || 0,
+        total_cost: parseFloat(document.getElementById("totalCost").value) || 0,
+        notes: document.getElementById("costEstimateNotes").value,
+        status: "submitted"
+    };
+    
+    const addButton = document.querySelector("#costEstimateModal .btn-primary");
+    if (addButton) addButton.disabled = true;
+    
+    try {
+        await createCostEstimate(estimateData);
+        showCustomAlert("Thêm ước lượng thành công!", "Đã thêm ước lượng chi phí", "✅");
+        closeCostEstimateModal();
+        await loadCostEstimates();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    } finally {
+        if (addButton) addButton.disabled = false;
+    }
+}
+
+// Hiển thị modal sửa ước lượng chi phí
+async function showEditCostEstimateModal(estimateId) {
+    if (currentUserRoleInProject !== 'manager') {
+        showCustomAlert("Không có quyền!", "Chỉ quản lý mới có thể sửa ước lượng chi phí", "❌");
+        return;
+    }
+    
+    try {
+        const estimates = await getProjectCostEstimates(currentProjectCode);
+        const estimate = estimates.find(e => e.estimate_id === estimateId);
+        
+        if (!estimate) {
+            showCustomAlert("Lỗi!", "Không tìm thấy ước lượng", "❌");
+            return;
+        }
+        
+        const tasks = await getProjectTasks(currentProjectCode);
+        const task = tasks.find(t => t.task_id === estimate.task_id);
+        
+        currentEditingCostEstimate = estimate;
+        
+        document.getElementById("editCostTaskName").value = task?.task_name || `Công việc #${estimate.task_id}`;
+        document.getElementById("editLaborCost").value = estimate.labor_cost;
+        document.getElementById("editEquipmentCost").value = estimate.equipment_cost;
+        document.getElementById("editOfficeSuppliesCost").value = estimate.office_supplies_cost;
+        document.getElementById("editTrainingCost").value = estimate.training_cost;
+        document.getElementById("editTravelCost").value = estimate.travel_cost;
+        document.getElementById("editOtherCost").value = estimate.other_cost;
+        document.getElementById("editTotalCost").value = estimate.total_cost;
+        document.getElementById("editCostEstimateNotes").value = estimate.notes || "";
+        
+        // Thêm event listeners
+        const costInputs = ["editLaborCost", "editEquipmentCost", "editOfficeSuppliesCost", "editTrainingCost", "editTravelCost", "editOtherCost"];
+        costInputs.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.removeEventListener("input", calculateEditTotalCost);
+                element.addEventListener("input", calculateEditTotalCost);
+            }
+        });
+        
+        const modal = document.getElementById("editCostEstimateModal");
+        if (modal) {
+            modal.style.display = "flex";
+        }
+        
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    }
+}
+
+function closeEditCostEstimateModal() {
+    const modal = document.getElementById("editCostEstimateModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+    currentEditingCostEstimate = null;
+}
+
+// Tính tổng chi phí cho modal sửa
+function calculateEditTotalCost() {
+    const labor = parseFloat(document.getElementById("editLaborCost").value) || 0;
+    const equipment = parseFloat(document.getElementById("editEquipmentCost").value) || 0;
+    const office = parseFloat(document.getElementById("editOfficeSuppliesCost").value) || 0;
+    const training = parseFloat(document.getElementById("editTrainingCost").value) || 0;
+    const travel = parseFloat(document.getElementById("editTravelCost").value) || 0;
+    const other = parseFloat(document.getElementById("editOtherCost").value) || 0;
+    
+    const total = labor + equipment + office + training + travel + other;
+    document.getElementById("editTotalCost").value = total;
+    return total;
+}
+
+// Cập nhật ước lượng chi phí
+async function confirmUpdateCostEstimate() {
+    if (!currentEditingCostEstimate) return;
+    
+    const updateData = {
+        labor_cost: parseFloat(document.getElementById("editLaborCost").value) || 0,
+        equipment_cost: parseFloat(document.getElementById("editEquipmentCost").value) || 0,
+        office_supplies_cost: parseFloat(document.getElementById("editOfficeSuppliesCost").value) || 0,
+        training_cost: parseFloat(document.getElementById("editTrainingCost").value) || 0,
+        travel_cost: parseFloat(document.getElementById("editTravelCost").value) || 0,
+        other_cost: parseFloat(document.getElementById("editOtherCost").value) || 0,
+        total_cost: parseFloat(document.getElementById("editTotalCost").value) || 0,
+        notes: document.getElementById("editCostEstimateNotes").value
+    };
+    
+    const saveButton = document.querySelector("#editCostEstimateModal .btn-primary");
+    if (saveButton) saveButton.disabled = true;
+    
+    try {
+        await updateCostEstimate(currentEditingCostEstimate.estimate_id, updateData);
+        showCustomAlert("Cập nhật thành công!", "Đã cập nhật ước lượng chi phí", "✅");
+        closeEditCostEstimateModal();
+        await loadCostEstimates();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    } finally {
+        if (saveButton) saveButton.disabled = false;
+    }
+}
+
+// Xóa ước lượng chi phí
+let pendingDeleteCostEstimate = null;
+
+function showConfirmDeleteCostEstimateModal(estimateId, taskName) {
+    pendingDeleteCostEstimate = {
+        id: estimateId,
+        task_name: taskName
+    };
+    
+    const messageEl = document.getElementById("deleteCostEstimateConfirmMessage");
+    const subMessageEl = document.getElementById("deleteCostEstimateConfirmSubmessage");
+    
+    if (messageEl) {
+        messageEl.innerHTML = `💰 Xóa ước lượng chi phí?`;
+    }
+    if (subMessageEl) {
+        subMessageEl.innerHTML = `Bạn có chắc chắn muốn xóa ước lượng chi phí cho công việc <strong>"${escapeHtml(taskName)}"</strong>?<br>Hành động này không thể hoàn tác!`;
+    }
+    
+    const modal = document.getElementById("confirmDeleteCostEstimateModal");
+    if (modal) {
+        modal.style.display = "flex";
+    }
+}
+
+function closeConfirmDeleteCostEstimateModal() {
+    const modal = document.getElementById("confirmDeleteCostEstimateModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+    pendingDeleteCostEstimate = null;
+}
+
+async function executeDeleteCostEstimate() {
+    if (!pendingDeleteCostEstimate) return;
+    
+    const deleteButton = document.getElementById("confirmDeleteCostEstimateBtn");
+    if (deleteButton) {
+        deleteButton.disabled = true;
+        deleteButton.textContent = "⏳ Đang xóa...";
+    }
+    
+    try {
+        await deleteCostEstimate(pendingDeleteCostEstimate.id);
+        showCustomAlert("Xóa thành công!", `Đã xóa ước lượng chi phí cho công việc "${pendingDeleteCostEstimate.task_name}"`, "✅");
+        closeConfirmDeleteCostEstimateModal();
+        await loadCostEstimates();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    } finally {
+        if (deleteButton) {
+            deleteButton.disabled = false;
+            deleteButton.textContent = "🗑️ Xóa";
+        }
     }
 }
 
@@ -1496,6 +1807,10 @@ function setupEventListeners() {
     // Task form
     const addTaskForm = document.getElementById("addTaskForm");
     if (addTaskForm) addTaskForm.onsubmit = (e) => { e.preventDefault(); addTaskToProject(); };
+
+
+    const addEstimateBtn = document.getElementById("addEstimateBtn");
+    if (addEstimateBtn) addEstimateBtn.onclick = showAddCostEstimateModal;
     
     // Click outside modal to close
     window.onclick = (e) => {
@@ -1506,6 +1821,9 @@ function setupEventListeners() {
         const editTaskModal = document.getElementById("editTaskModal");
         const confirmDeleteTaskModal = document.getElementById("confirmDeleteTaskModal");
         const timeEstimateModal = document.getElementById("timeEstimateModal");
+        const costEstimateModal = document.getElementById("costEstimateModal");
+        const editCostEstimateModal = document.getElementById("editCostEstimateModal");
+        const confirmDeleteCostEstimateModal = document.getElementById("confirmDeleteCostEstimateModal");
         
         if (e.target === memberModal) closeMemberModal();
         if (e.target === taskModal) closeTaskModal();
@@ -1514,6 +1832,9 @@ function setupEventListeners() {
         if (e.target === editTaskModal) closeEditTaskModal();
         if (e.target === confirmDeleteTaskModal) closeConfirmDeleteTaskModal();
         if (e.target === timeEstimateModal) closeTimeEstimateModal();
+        if (e.target === costEstimateModal) closeCostEstimateModal();
+        if (e.target === editCostEstimateModal) closeEditCostEstimateModal();
+        if (e.target === confirmDeleteCostEstimateModal) closeConfirmDeleteCostEstimateModal();
     };
 }
 
