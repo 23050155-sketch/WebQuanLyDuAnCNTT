@@ -142,6 +142,7 @@ async function loadProjectDetail() {
         await loadTasks();
         await loadMembers();
         await loadCostEstimates();
+        await loadTimeEstimates();
         
     } catch (error) {
         console.error("Error loading project:", error);
@@ -163,10 +164,10 @@ async function loadUserRoleInProject() {
         currentUserRoleInProject = currentMember ? currentMember.role_in_project : null;
         
         // Nếu là người tạo project (created_by) thì set role là 'creator'
-        const project = await getProject(currentProjectCode);
-        if (project && project.created_by === currentUser.user_id) {
-            currentUserRoleInProject = 'creator';
-        }
+        //const project = await getProject(currentProjectCode);
+        //if (project && project.created_by === currentUser.user_id) {
+        //    currentUserRoleInProject = 'creator';
+        //}
         
         console.log("User role in project:", currentUserRoleInProject);
         return currentUserRoleInProject;
@@ -865,6 +866,319 @@ async function updateTaskStatus(taskId) {
     }
 }
 
+
+
+
+// ==================== ƯỚC LƯỢNG THỜI GIAN ====================
+let currentEditingTimeEstimate = null;
+
+// Hàm lấy tên chuyên gia (thêm vào đầu phần này)
+async function getExpertName(expertId) {
+    try {
+        const users = await getUsers();
+        const user = users.find(u => u.user_id === expertId);
+        return user?.fullname || `Chuyên gia #${expertId}`;
+    } catch (error) {
+        return `Chuyên gia #${expertId}`;
+    }
+}
+
+// Load danh sách ước lượng thời gian
+async function loadTimeEstimates() {
+    try {
+        // Lấy danh sách tasks trước để biết task_name
+        const tasks = await getProjectTasks(currentProjectCode);
+        const taskMap = new Map();
+        tasks.forEach(task => {
+            taskMap.set(task.task_id, task);
+        });
+        
+        // Lấy danh sách ước lượng thời gian
+        const estimates = await getProjectTimeEstimates(currentProjectCode);
+        const container = document.getElementById("timeEstimatesList");
+        
+        if (!container) return;
+        
+        if (!estimates || estimates.length === 0) {
+            container.innerHTML = '<div class="empty-state">⏰ Chưa có ước lượng thời gian nào</div>';
+            return;
+        }
+        
+        // Lấy thông tin users để hiển thị tên
+        const allUsers = await getUsers();
+        const userMap = new Map();
+        allUsers.forEach(user => {
+            userMap.set(user.user_id, user);
+        });
+        
+        container.innerHTML = await Promise.all(estimates.map(async (est) => {
+            const task = taskMap.get(est.task_id);
+            const isManager = currentUserRoleInProject === 'manager';
+            const isOwner = currentUser && est.expert_id === currentUser.user_id;
+            
+            // Quyền hiển thị nút
+            const canEdit = isOwner && (est.status === 'draft' || est.status === 'submitted');
+            const canDelete = isManager || isOwner;
+            const canApprove = isManager && est.status === 'submitted';
+            const canReject = isManager && (est.status === 'draft' || est.status === 'submitted');
+            
+            const expertName = userMap.get(est.expert_id)?.fullname || `Chuyên gia #${est.expert_id}`;
+            const approverName = est.approved_by ? (userMap.get(est.approved_by)?.fullname || `Người dùng #${est.approved_by}`) : null;
+            
+            return `
+                <div class="estimate-card" data-estimate-id="${est.estimate_id}">
+                    <div class="estimate-header">
+                        <strong>📋 ${task?.task_name || `Công việc #${est.task_id}`}</strong>
+                        <span class="estimate-status status-${est.status}">${getEstimateStatusName(est.status)}</span>
+                    </div>
+                    <div class="estimate-details">
+                        <span>📈 Lạc quan: <strong>${est.optimistic_days}</strong> ngày</span>
+                        <span>📉 Bi quan: <strong>${est.pessimistic_days}</strong> ngày</span>
+                        <span>📊 Khả năng nhất: <strong>${est.most_likely_days}</strong> ngày</span>
+                        <span>🎯 Kỳ vọng: <strong>${est.expected_days}</strong> ngày</span>
+                        <span>📊 Độ tin cậy: <strong>${est.confidence_level}%</strong></span>
+                    </div>
+                    ${est.reasoning ? `<div class="estimate-notes">💬 ${escapeHtml(est.reasoning)}</div>` : ''}
+                    <div class="estimate-footer">
+                        <div class="estimate-info">
+                            <span class="estimate-author">👤 Chuyên gia: ${expertName}</span>
+                            <span class="estimate-date">📅 ${new Date(est.created_at).toLocaleDateString()}</span>
+                            ${approverName ? `<span class="estimate-approved">✅ Duyệt bởi: ${approverName}</span>` : ''}
+                        </div>
+                        <div class="estimate-actions">
+                            ${canApprove ? `<button onclick="approveTimeEstimate(${est.estimate_id})" class="btn-icon btn-success" title="Duyệt">✅ Duyệt</button>` : ''}
+                            ${canReject ? `<button onclick="rejectTimeEstimate(${est.estimate_id})" class="btn-icon btn-warning" title="Từ chối">❌ Từ chối</button>` : ''}
+                            ${canEdit ? `<button onclick="editTimeEstimate(${est.estimate_id})" class="btn-icon" title="Sửa">✏️ Sửa</button>` : ''}
+                            ${canDelete ? `<button onclick="deleteTimeEstimate(${est.estimate_id})" class="btn-icon btn-danger" title="Xóa">🗑️ Xóa</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        })).then(results => results.join(""));
+        
+    } catch (error) {
+        console.error("Error loading time estimates:", error);
+        const container = document.getElementById("timeEstimatesList");
+        if (container) {
+            container.innerHTML = '<div class="error-state">❌ Lỗi tải ước lượng thời gian</div>';
+        }
+    }
+}
+
+// Hiển thị modal thêm ước lượng thời gian
+async function showAddTimeEstimateModal() {
+    // Kiểm tra quyền: chỉ expert mới được thêm ước lượng
+    if (currentUserRoleInProject !== 'expert') {
+        showCustomAlert("Không có quyền!", "Chỉ chuyên gia mới có thể thêm ước lượng thời gian", "❌");
+        return;
+    }
+    
+    // Load danh sách công việc để chọn
+    try {
+        const tasks = await getProjectTasks(currentProjectCode);
+        const taskSelect = document.getElementById("estimateTaskId");
+        if (taskSelect) {
+            taskSelect.innerHTML = '<option value="">-- Chọn công việc --</option>' + 
+                tasks.map(task => `
+                    <option value="${task.task_id}">${escapeHtml(task.task_name)}</option>
+                `).join("");
+        }
+        
+        // Reset form
+        document.getElementById("addTimeEstimateForm")?.reset();
+        document.getElementById("optimisticDays").value = 0;
+        document.getElementById("pessimisticDays").value = 0;
+        document.getElementById("mostLikelyDays").value = 0;
+        document.getElementById("confidenceLevel").value = 50;
+        document.getElementById("confidenceValue").textContent = "50%";
+        document.getElementById("expectedDays").value = 0;
+        
+        const modal = document.getElementById("timeEstimateModal");
+        if (modal) {
+            modal.style.display = "flex";
+        }
+        
+        // Thêm event listener cho các input để tính expected days
+        setupPertCalculator();
+        
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    }
+}
+
+function closeTimeEstimateModal() {
+    const modal = document.getElementById("timeEstimateModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
+
+// Tính toán expected days theo công thức PERT
+function calculateExpectedDays() {
+    const o = parseFloat(document.getElementById("optimisticDays").value) || 0;
+    const m = parseFloat(document.getElementById("mostLikelyDays").value) || 0;
+    const p = parseFloat(document.getElementById("pessimisticDays").value) || 0;
+    
+    const expected = (o + 4 * m + p) / 6;
+    document.getElementById("expectedDays").value = expected.toFixed(2);
+}
+
+function setupPertCalculator() {
+    const inputs = ["optimisticDays", "mostLikelyDays", "pessimisticDays"];
+    inputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.removeEventListener("input", calculateExpectedDays);
+            element.addEventListener("input", calculateExpectedDays);
+        }
+    });
+    
+    // Confidence level slider
+    const confidenceSlider = document.getElementById("confidenceLevel");
+    const confidenceValue = document.getElementById("confidenceValue");
+    if (confidenceSlider && confidenceValue) {
+        confidenceSlider.removeEventListener("input", function() {});
+        confidenceSlider.addEventListener("input", function() {
+            confidenceValue.textContent = this.value + "%";
+        });
+    }
+}
+
+// Thêm ước lượng thời gian
+async function addTimeEstimate() {
+    const taskId = document.getElementById("estimateTaskId").value;
+    if (!taskId) {
+        showCustomAlert("Thiếu thông tin", "Vui lòng chọn công việc", "❌");
+        return;
+    }
+    
+    const estimateData = {
+        project_id: currentProjectCode,
+        task_id: parseInt(taskId),
+        expert_id: currentUser.user_id,
+        optimistic_days: parseFloat(document.getElementById("optimisticDays").value) || 0,
+        pessimistic_days: parseFloat(document.getElementById("pessimisticDays").value) || 0,
+        most_likely_days: parseFloat(document.getElementById("mostLikelyDays").value) || 0,
+        expected_days: parseFloat(document.getElementById("expectedDays").value) || 0,
+        confidence_level: parseInt(document.getElementById("confidenceLevel").value) || 50,
+        reasoning: document.getElementById("estimateReasoning").value,
+        status: "submitted"
+    };
+    
+    const addButton = document.querySelector("#timeEstimateModal .btn-primary");
+    if (addButton) addButton.disabled = true;
+    
+    try {
+        await createExpertTimeEstimate(estimateData);
+        showCustomAlert("Thêm ước lượng thành công!", "Đã gửi ước lượng thời gian", "✅");
+        closeTimeEstimateModal();
+        await loadTimeEstimates();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    } finally {
+        if (addButton) addButton.disabled = false;
+    }
+}
+
+// Duyệt ước lượng thời gian (chỉ manager)
+async function approveTimeEstimate(estimateId) {
+    if (currentUserRoleInProject !== 'manager') {
+        showCustomAlert("Không có quyền!", "Chỉ quản lý mới có thể duyệt ước lượng", "❌");
+        return;
+    }
+    
+    try {
+        await approveExpertTimeEstimate(estimateId, currentUser.user_id);
+        showCustomAlert("Duyệt thành công!", "Đã duyệt ước lượng thời gian", "✅");
+        await loadTimeEstimates();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    }
+}
+
+// TỪ CHỐI ước lượng thời gian (chỉ manager) - THÊM MỚI
+async function rejectTimeEstimate(estimateId) {
+    if (currentUserRoleInProject !== 'manager') {
+        showCustomAlert("Không có quyền!", "Chỉ quản lý mới có thể từ chối ước lượng", "❌");
+        return;
+    }
+    
+    if (!confirm("Bạn có chắc chắn muốn từ chối ước lượng này?")) return;
+    
+    try {
+        await rejectExpertTimeEstimate(estimateId, currentUser.user_id);
+        showCustomAlert("Từ chối thành công!", "Đã từ chối ước lượng thời gian", "✅");
+        await loadTimeEstimates();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    }
+}
+
+// SỬA ước lượng thời gian (chỉ expert của chính mình, khi chưa duyệt) - THÊM MỚI
+async function editTimeEstimate(estimateId) {
+    if (currentUserRoleInProject !== 'expert') {
+        showCustomAlert("Không có quyền!", "Chỉ chuyên gia mới có thể sửa ước lượng của mình", "❌");
+        return;
+    }
+    
+    try {
+        // Lấy thông tin ước lượng hiện tại
+        const estimates = await getProjectTimeEstimates(currentProjectCode);
+        const estimate = estimates.find(e => e.estimate_id === estimateId);
+        
+        if (!estimate) {
+            showCustomAlert("Lỗi!", "Không tìm thấy ước lượng", "❌");
+            return;
+        }
+        
+        // Kiểm tra xem có phải của mình không
+        if (estimate.expert_id !== currentUser.user_id) {
+            showCustomAlert("Không có quyền!", "Bạn chỉ có thể sửa ước lượng của chính mình", "❌");
+            return;
+        }
+        
+        // Kiểm tra trạng thái
+        if (estimate.status === 'approved') {
+            showCustomAlert("Không thể sửa!", "Ước lượng đã được duyệt, không thể sửa", "❌");
+            return;
+        }
+        
+        // TODO: Mở modal sửa với dữ liệu hiện tại
+        // Tạm thời thông báo
+        showCustomAlert("Thông báo", "Tính năng sửa ước lượng đang phát triển", "ℹ️");
+        
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    }
+}
+
+// Xóa ước lượng thời gian
+async function deleteTimeEstimate(estimateId) {
+    if (!confirm("Bạn có chắc muốn xóa ước lượng này?")) return;
+    
+    try {
+        await deleteExpertTimeEstimate(estimateId);
+        showCustomAlert("Xóa thành công!", "Đã xóa ước lượng thời gian", "✅");
+        await loadTimeEstimates();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    }
+}
+
+function getEstimateStatusName(status) {
+    const statuses = {
+        "draft": "📝 Nháp",
+        "submitted": "📤 Đã gửi",
+        "approved": "✅ Đã duyệt",
+        "rejected": "❌ Đã từ chối"
+    };
+    return statuses[status] || status;
+}
+
+
+
+
+
 // ==================== QUẢN LÝ CHI PHÍ ====================
 async function loadCostEstimates() {
     try {
@@ -1007,6 +1321,11 @@ function setupEventListeners() {
     // Add task button
     const addTaskBtn = document.getElementById("addTaskBtn");
     if (addTaskBtn) addTaskBtn.onclick = showAddTaskModal;
+
+    const addTimeEstimateBtn = document.getElementById("addTimeEstimateBtn");
+    if (addTimeEstimateBtn) {
+        addTimeEstimateBtn.onclick = () => { showAddTimeEstimateModal(); };
+    }
     
     // Member form
     const addMemberForm = document.getElementById("addMemberForm");
@@ -1024,6 +1343,7 @@ function setupEventListeners() {
         const confirmDeleteModal = document.getElementById("confirmDeleteModal");
         const editTaskModal = document.getElementById("editTaskModal");
         const confirmDeleteTaskModal = document.getElementById("confirmDeleteTaskModal");
+        const timeEstimateModal = document.getElementById("timeEstimateModal");
         
         if (e.target === memberModal) closeMemberModal();
         if (e.target === taskModal) closeTaskModal();
@@ -1031,6 +1351,7 @@ function setupEventListeners() {
         if (e.target === confirmDeleteModal) closeConfirmDeleteModal();
         if (e.target === editTaskModal) closeEditTaskModal();
         if (e.target === confirmDeleteTaskModal) closeConfirmDeleteTaskModal();
+        if (e.target === timeEstimateModal) closeTimeEstimateModal();
     };
 }
 

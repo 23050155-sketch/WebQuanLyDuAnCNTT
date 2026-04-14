@@ -290,8 +290,8 @@ async function createExpertTimeEstimate(estimateData) {
     return await apiRequest("/expert-time-estimates", "POST", estimateData);
 }
 
-async function getExpertTimeEstimatesByTask(taskId) {
-    return await apiRequest(`/expert-time-estimates?task_id=${taskId}`);
+async function getProjectTimeEstimates(projectId) {
+    return await apiRequest(`/expert-time-estimates?project_id=${projectId}`);
 }
 
 async function updateExpertTimeEstimate(estimateId, data) {
@@ -300,4 +300,12 @@ async function updateExpertTimeEstimate(estimateId, data) {
 
 async function deleteExpertTimeEstimate(estimateId) {
     return await apiRequest(`/expert-time-estimates/${estimateId}`, "DELETE");
+}
+
+async function approveExpertTimeEstimate(estimateId, approverId) {
+    return await apiRequest(`/expert-time-estimates/${estimateId}/approve?approver_id=${approverId}`, "PATCH");
+}
+
+async function rejectExpertTimeEstimate(estimateId, approverId) {
+    return await apiRequest(`/expert-time-estimates/${estimateId}/reject?approver_id=${approverId}`, "PATCH");
 }

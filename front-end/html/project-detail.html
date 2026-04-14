@@ -18,9 +18,20 @@
 
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab-btn active" data-tab="tasks">📋 Công việc</button>
             <button class="tab-btn" data-tab="members">👥 Thành viên</button>
+            <button class="tab-btn active" data-tab="tasks">📋 Công việc</button>
+            <button class="tab-btn" data-tab="time">⏰ Ước lượng thời gian</button>
             <button class="tab-btn" data-tab="estimates">💰 Ước lượng chi phí</button>
+
+        </div>
+
+        <!-- Tab Thành viên -->
+        <div id="membersTab" class="tab-content">
+            <div class="section-header">
+                <h2>Thành viên</h2>
+                <button id="addMemberBtn" class="btn-small">+ Thêm thành viên</button>
+            </div>
+            <div id="membersList" class="members-list"></div>
         </div>
 
         <!-- Tab Công việc -->
@@ -32,13 +43,13 @@
             <div id="tasksList" class="tasks-list"></div>
         </div>
 
-        <!-- Tab Thành viên -->
-        <div id="membersTab" class="tab-content">
+        <!-- Tab Ước lượng thời gian -->
+        <div id="timeTab" class="tab-content">
             <div class="section-header">
-                <h2>Thành viên</h2>
-                <button id="addMemberBtn" class="btn-small">+ Thêm thành viên</button>
+                <h2>⏰ Ước lượng thời gian từ chuyên gia</h2>
+                <button id="addTimeEstimateBtn" class="btn-small">+ Thêm ước lượng</button>
             </div>
-            <div id="membersList" class="members-list"></div>
+            <div id="timeEstimatesList" class="estimates-list"></div>
         </div>
 
         <!-- Tab Chi phí -->
@@ -266,6 +277,63 @@
             </div>
         </div>
     </div>
+
+
+
+    <!-- Modal thêm ước lượng thời gian -->
+    <div id="timeEstimateModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⏰ Thêm ước lượng thời gian</h3>
+                <button class="close-modal" onclick="closeTimeEstimateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addTimeEstimateForm">
+                    <div class="form-group">
+                        <label>Chọn công việc *</label>
+                        <select id="estimateTaskId" required>
+                            <option value="">-- Chọn công việc --</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>📈 Lạc quan (ngày)</label>
+                            <input type="number" id="optimisticDays" step="0.5" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>📉 Bi quan (ngày)</label>
+                            <input type="number" id="pessimisticDays" step="0.5" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>📊 Khả năng nhất (ngày)</label>
+                        <input type="number" id="mostLikelyDays" step="0.5" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>🎯 Ngày kỳ vọng (tự động tính)</label>
+                        <input type="number" id="expectedDays" step="0.5" readonly style="background:#f0f0f0;">
+                        <small>Công thức PERT: (O + 4M + P)/6</small>
+                    </div>
+                    <div class="form-group">
+                        <label>📝 Độ tin cậy (%)</label>
+                        <input type="range" id="confidenceLevel" min="0" max="100" value="50">
+                        <span id="confidenceValue">50%</span>
+                    </div>
+                    <div class="form-group">
+                        <label>💬 Lý do ước lượng</label>
+                        <textarea id="estimateReasoning" rows="3" placeholder="Lý do cho ước lượng này..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeTimeEstimateModal()">❌ Hủy</button>
+                <button type="button" class="btn-primary" onclick="addTimeEstimate()">✅ Lưu ước lượng</button>
+            </div>
+        </div>
+    </div>
+
+
+
 
     <!-- Toast notification -->
     <div id="toastNotification" class="toast-notification" style="display:none;">

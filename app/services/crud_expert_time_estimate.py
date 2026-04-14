@@ -6,6 +6,11 @@ from datetime import datetime
 def get_estimate(db: Session, estimate_id: int):
     return db.query(ExpertTimeEstimate).filter(ExpertTimeEstimate.estimate_id == estimate_id).first()
 
+def get_estimates_by_project(db: Session, project_id: str, skip: int = 0, limit: int = 100):
+    return db.query(ExpertTimeEstimate).filter(
+        ExpertTimeEstimate.project_id == project_id
+    ).offset(skip).limit(limit).all()
+
 def get_estimates_by_task(db: Session, task_id: int, skip: int = 0, limit: int = 100):
     return db.query(ExpertTimeEstimate).filter(
         ExpertTimeEstimate.task_id == task_id
@@ -63,3 +68,15 @@ def approve_estimate(db: Session, estimate_id: int, approver_id: int):
         db.commit()
         db.refresh(db_estimate)
     return db_estimate
+
+def reject_estimate(db: Session, estimate_id: int, approver_id: int):
+    """Từ chối ước lượng"""
+    db_estimate = get_estimate(db, estimate_id)
+    if db_estimate:
+        db_estimate.status = 'rejected'
+        db_estimate.approved_by = approver_id
+        db_estimate.approved_at = datetime.utcnow()
+        db.commit()
+        db.refresh(db_estimate)
+    return db_estimate
+
