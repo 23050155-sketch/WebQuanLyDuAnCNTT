@@ -34,6 +34,7 @@ function isAuthenticated() {
 }
 
 // API request wrapper
+// API request wrapper
 async function apiRequest(endpoint, method = "GET", data = null) {
     const url = `${API_BASE_URL}${endpoint}`;
     const headers = {
@@ -43,6 +44,12 @@ async function apiRequest(endpoint, method = "GET", data = null) {
     const token = getToken();
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    // ✅ Thêm 3 dòng này
+    const user = getUserInfo();
+    if (user && user.user_id) {
+        headers["X-User-Id"] = user.user_id;
     }
     
     const options = {

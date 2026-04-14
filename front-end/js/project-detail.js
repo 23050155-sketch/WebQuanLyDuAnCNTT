@@ -8,6 +8,9 @@ let pendingDeleteMember = null;   // Lưu thông tin thành viên sắp xóa
 let currentEditingTask = null;
 let pendingDeleteTask = null;
 
+
+
+
 let alertCallback = null
 
 
@@ -949,7 +952,7 @@ async function loadTimeEstimates() {
                             ${canApprove ? `<button onclick="approveTimeEstimate(${est.estimate_id})" class="btn-icon btn-success" title="Duyệt">✅ Duyệt</button>` : ''}
                             ${canReject ? `<button onclick="rejectTimeEstimate(${est.estimate_id})" class="btn-icon btn-warning" title="Từ chối">❌ Từ chối</button>` : ''}
                             ${canEdit ? `<button onclick="editTimeEstimate(${est.estimate_id})" class="btn-icon" title="Sửa">✏️ Sửa</button>` : ''}
-                            ${canDelete ? `<button onclick="deleteTimeEstimate(${est.estimate_id})" class="btn-icon btn-danger" title="Xóa">🗑️ Xóa</button>` : ''}
+                            ${canDelete ? `<button onclick="showConfirmDeleteTimeEstimateModal(${est.estimate_id}, '${escapeHtml(task?.task_name || `Công việc #${est.task_id}`)}', '${expertName}')" class="btn-icon btn-danger" title="Xóa">🗑️ Xóa</button>` : ''}
                         </div>
                     </div>
                 </div>
@@ -1143,25 +1146,184 @@ async function editTimeEstimate(estimateId) {
             return;
         }
         
-        // TODO: Mở modal sửa với dữ liệu hiện tại
-        // Tạm thời thông báo
-        showCustomAlert("Thông báo", "Tính năng sửa ước lượng đang phát triển", "ℹ️");
+        if (estimate.status === 'rejected') {
+            showCustomAlert("Không thể sửa!", "Ước lượng đã bị từ chối, hãy tạo ước lượng mới", "❌");
+            return;
+        }
+        
+        // Lấy tên công việc
+        const tasks = await getProjectTasks(currentProjectCode);
+        const task = tasks.find(t => t.task_id === estimate.task_id);
+        
+        // Lưu thông tin đang sửa
+        currentEditingTimeEstimate = estimate;
+        
+        // Điền dữ liệu vào form
+        document.getElementById("editTaskNameDisplay").value = task?.task_name || `Công việc #${estimate.task_id}`;
+        document.getElementById("editOptimisticDays").value = estimate.optimistic_days;
+        document.getElementById("editPessimisticDays").value = estimate.pessimistic_days;
+        document.getElementById("editMostLikelyDays").value = estimate.most_likely_days;
+        document.getElementById("editExpectedDays").value = estimate.expected_days;
+        document.getElementById("editConfidenceLevel").value = estimate.confidence_level || 50;
+        document.getElementById("editConfidenceValue").textContent = `${estimate.confidence_level || 50}%`;
+        document.getElementById("editEstimateReasoning").value = estimate.reasoning || "";
+        
+        // Thiết lập event listeners cho PERT calculator
+        setupEditPertCalculator();
+        
+        // Hiển thị modal
+        const modal = document.getElementById("editTimeEstimateModal");
+        if (modal) {
+            modal.style.display = "flex";
+        }
         
     } catch (error) {
+        console.error("Error in editTimeEstimate:", error);
         showCustomAlert("Lỗi!", error.message, "❌");
     }
 }
 
-// Xóa ước lượng thời gian
-async function deleteTimeEstimate(estimateId) {
-    if (!confirm("Bạn có chắc muốn xóa ước lượng này?")) return;
+// Đóng modal sửa ước lượng
+function closeEditTimeEstimateModal() {
+    const modal = document.getElementById("editTimeEstimateModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+    currentEditingTimeEstimate = null;
+}
+
+// Tính toán expected days cho modal sửa
+function calculateEditExpectedDays() {
+    const o = parseFloat(document.getElementById("editOptimisticDays").value) || 0;
+    const m = parseFloat(document.getElementById("editMostLikelyDays").value) || 0;
+    const p = parseFloat(document.getElementById("editPessimisticDays").value) || 0;
+    
+    const expected = (o + 4 * m + p) / 6;
+    document.getElementById("editExpectedDays").value = expected.toFixed(2);
+}
+
+// Thiết lập PERT calculator cho modal sửa
+function setupEditPertCalculator() {
+    const inputs = ["editOptimisticDays", "editMostLikelyDays", "editPessimisticDays"];
+    inputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.removeEventListener("input", calculateEditExpectedDays);
+            element.addEventListener("input", calculateEditExpectedDays);
+        }
+    });
+    
+    // Confidence level slider
+    const confidenceSlider = document.getElementById("editConfidenceLevel");
+    const confidenceValue = document.getElementById("editConfidenceValue");
+    if (confidenceSlider && confidenceValue) {
+        confidenceSlider.removeEventListener("input", function() {});
+        confidenceSlider.addEventListener("input", function() {
+            confidenceValue.textContent = this.value + "%";
+        });
+    }
+}
+
+// Xác nhận cập nhật ước lượng thời gian
+async function confirmUpdateTimeEstimate() {
+    if (!currentEditingTimeEstimate) {
+        showCustomAlert("Lỗi!", "Không có ước lượng nào đang được sửa", "❌");
+        return;
+    }
+    
+    const updateData = {
+        optimistic_days: parseFloat(document.getElementById("editOptimisticDays").value) || 0,
+        pessimistic_days: parseFloat(document.getElementById("editPessimisticDays").value) || 0,
+        most_likely_days: parseFloat(document.getElementById("editMostLikelyDays").value) || 0,
+        expected_days: parseFloat(document.getElementById("editExpectedDays").value) || 0,
+        confidence_level: parseInt(document.getElementById("editConfidenceLevel").value) || 50,
+        reasoning: document.getElementById("editEstimateReasoning").value,
+        status: "submitted"
+    };
+    
+    const saveButton = document.querySelector("#editTimeEstimateModal .btn-primary");
+    if (saveButton) saveButton.disabled = true;
     
     try {
-        await deleteExpertTimeEstimate(estimateId);
-        showCustomAlert("Xóa thành công!", "Đã xóa ước lượng thời gian", "✅");
+        await updateExpertTimeEstimate(currentEditingTimeEstimate.estimate_id, updateData);
+        showCustomAlert("Cập nhật thành công!", "Đã cập nhật ước lượng thời gian", "✅");
+        closeEditTimeEstimateModal();
         await loadTimeEstimates();
     } catch (error) {
+        console.error("Error updating time estimate:", error);
         showCustomAlert("Lỗi!", error.message, "❌");
+    } finally {
+        if (saveButton) saveButton.disabled = false;
+    }
+}
+
+// Xóa ước lượng thời gian
+// Biến lưu thông tin ước lượng đang chờ xóa
+let pendingDeleteTimeEstimate = null;
+
+// Hiển thị modal xác nhận xóa ước lượng thời gian
+function showConfirmDeleteTimeEstimateModal(estimateId, taskName, expertName) {
+    pendingDeleteTimeEstimate = {
+        id: estimateId,
+        task_name: taskName,
+        expert_name: expertName
+    };
+    
+    const messageEl = document.getElementById("deleteTimeEstimateConfirmMessage");
+    const subMessageEl = document.getElementById("deleteTimeEstimateConfirmSubmessage");
+    
+    if (messageEl) {
+        messageEl.innerHTML = `🗑️ Xóa ước lượng thời gian?`;
+    }
+    if (subMessageEl) {
+        subMessageEl.innerHTML = `Bạn có chắc chắn muốn xóa ước lượng cho công việc <strong>"${escapeHtml(taskName)}"</strong>?<br>Hành động này không thể hoàn tác!`;
+    }
+    
+    const modal = document.getElementById("confirmDeleteTimeEstimateModal");
+    if (modal) {
+        modal.style.display = "flex";
+    }
+}
+
+// Đóng modal xác nhận xóa
+function closeConfirmDeleteTimeEstimateModal() {
+    const modal = document.getElementById("confirmDeleteTimeEstimateModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+    pendingDeleteTimeEstimate = null;
+}
+
+// Thực hiện xóa ước lượng thời gian
+async function executeDeleteTimeEstimate() {
+    if (!pendingDeleteTimeEstimate) return;
+    
+    const deleteButton = document.getElementById("confirmDeleteTimeEstimateBtn");
+    if (deleteButton) {
+        deleteButton.disabled = true;
+        deleteButton.textContent = "⏳ Đang xóa...";
+    }
+    
+    try {
+        await deleteExpertTimeEstimate(pendingDeleteTimeEstimate.id);
+        
+        // Hiển thị thông báo thành công với modal đẹp
+        showCustomAlert(
+            "Xóa thành công!", 
+            `Đã xóa ước lượng thời gian cho công việc "${pendingDeleteTimeEstimate.task_name}"`,
+            "✅"
+        );
+        
+        closeConfirmDeleteTimeEstimateModal();
+        await loadTimeEstimates(); // Reload danh sách
+    } catch (error) {
+        console.error("Error deleting time estimate:", error);
+        showCustomAlert("Lỗi!", error.message, "❌");
+    } finally {
+        if (deleteButton) {
+            deleteButton.disabled = false;
+            deleteButton.textContent = "🗑️ Xóa";
+        }
     }
 }
 

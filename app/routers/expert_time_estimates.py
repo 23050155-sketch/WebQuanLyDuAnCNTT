@@ -92,9 +92,10 @@ def update_estimate(
     estimate_id: int, 
     estimate: schemas.ExpertTimeEstimateUpdate, 
     db: Session = Depends(get_db),
-    x_user_id: Optional[int] = Header(None, alias="X-User-Id")
+    x_user_id: Optional[int] = Header(None, alias="X-User-Id") 
 ):
     """Cập nhật ước lượng (chỉ expert của chính estimate đó, nếu chưa duyệt)"""
+    # Lấy user_id từ header
     current_user_id = x_user_id or 1
     
     db_estimate = crud_expert_time_estimate.get_estimate(db, estimate_id=estimate_id)

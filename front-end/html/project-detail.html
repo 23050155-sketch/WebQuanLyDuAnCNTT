@@ -335,6 +335,84 @@
 
 
 
+    <!-- Modal sửa ước lượng thời gian -->
+    <div id="editTimeEstimateModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Sửa ước lượng thời gian</h3>
+                <button class="close-modal" onclick="closeEditTimeEstimateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editTimeEstimateForm">
+                    <div class="form-group">
+                        <label>Công việc</label>
+                        <input type="text" id="editTaskNameDisplay" readonly style="background:#f0f0f0;">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>📈 Lạc quan (ngày)</label>
+                            <input type="number" id="editOptimisticDays" step="0.5" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>📉 Bi quan (ngày)</label>
+                            <input type="number" id="editPessimisticDays" step="0.5" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>📊 Khả năng nhất (ngày)</label>
+                        <input type="number" id="editMostLikelyDays" step="0.5" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>🎯 Ngày kỳ vọng (tự động tính)</label>
+                        <input type="number" id="editExpectedDays" step="0.5" readonly style="background:#f0f0f0;">
+                        <small>Công thức PERT: (O + 4M + P)/6</small>
+                    </div>
+                    <div class="form-group">
+                        <label>📝 Độ tin cậy (%)</label>
+                        <input type="range" id="editConfidenceLevel" min="0" max="100" value="50">
+                        <span id="editConfidenceValue">50%</span>
+                    </div>
+                    <div class="form-group">
+                        <label>💬 Lý do ước lượng</label>
+                        <textarea id="editEstimateReasoning" rows="3" placeholder="Lý do cho ước lượng này..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditTimeEstimateModal()">❌ Hủy</button>
+                <button type="button" class="btn-primary" onclick="confirmUpdateTimeEstimate()">💾 Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Modal xác nhận xóa ước lượng thời gian -->
+    <div id="confirmDeleteTimeEstimateModal" class="modal confirm-modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                <h3 style="color: white; margin: 0;">⚠️ Xác nhận xóa</h3>
+                <button class="close-modal" onclick="closeConfirmDeleteTimeEstimateModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 32px; height: 32px; border-radius: 50%;">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 30px;">
+                <div class="confirm-icon" style="font-size: 60px; margin-bottom: 20px;">🗑️</div>
+                <div class="confirm-message" id="deleteTimeEstimateConfirmMessage" style="font-size: 18px; font-weight: 500; color: #333; margin-bottom: 10px;">
+                    Bạn có chắc chắn muốn xóa ước lượng này?
+                </div>
+                <div class="confirm-submessage" id="deleteTimeEstimateConfirmSubmessage" style="font-size: 14px; color: #666;">
+                    Hành động này không thể hoàn tác!
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: center; gap: 12px; padding: 16px 24px;">
+                <button type="button" class="btn-secondary" onclick="closeConfirmDeleteTimeEstimateModal()" style="padding: 10px 24px;">❌ Hủy</button>
+                <button type="button" class="btn-danger" id="confirmDeleteTimeEstimateBtn" onclick="executeDeleteTimeEstimate()" style="padding: 10px 24px;">🗑️ Xóa</button>
+            </div>
+        </div>
+    </div>
+
+
+
+
     <!-- Toast notification -->
     <div id="toastNotification" class="toast-notification" style="display:none;">
         <span id="toastIcon">✅</span>
