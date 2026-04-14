@@ -10,18 +10,26 @@ router = APIRouter(prefix="/project-members", tags=["Project Members"])
 # ==================== HÀM KIỂM TRA QUYỀN TRONG PROJECT ====================
 def get_user_role_in_project(db: Session, project_id: str, user_id: int):
     """Lấy vai trò của user trong project cụ thể"""
-    project = crud_project.get_project(db, project_id)
-    if project and project.created_by == user_id:
-        return 'creator'
+    # Admin có toàn quyền (coi như manager)
+    user = crud_user.get_user(db, user_id)
+    if user and user.role == 'admin':
+        return 'manager'
     
+    # Chỉ kiểm tra trong bảng project_members
     member = crud_project_member.get_project_member_by_project_and_user(db, project_id, user_id)
     return member.role_in_project if member else None
 
 
 def can_manage_members(db: Session, project_id: str, user_id: int):
-    """Kiểm tra user có quyền quản lý thành viên không (creator hoặc manager)"""
-    role = get_user_role_in_project(db, project_id, user_id)
-    return role in ['creator', 'manager']
+    """Kiểm tra user có quyền quản lý thành viên không (chỉ manager)"""
+    # Admin có toàn quyền
+    user = crud_user.get_user(db, user_id)
+    if user and user.role == 'admin':
+        return True
+    
+    # Chỉ kiểm tra role manager trong project_members
+    member = crud_project_member.get_project_member_by_project_and_user(db, project_id, user_id)
+    return member and member.role_in_project == 'manager'
 
 
 # ==================== ENDPOINTS ====================
@@ -31,10 +39,10 @@ def add_project_member(
     db: Session = Depends(get_db),
     current_user_id: int = 1  # TODO: Lấy từ token
 ):
-    """Thêm thành viên vào dự án (chỉ creator hoặc manager)"""
+    """Thêm thành viên vào dự án (chỉ manager)"""
     # Kiểm tra quyền
     if not can_manage_members(db, member.project_id, current_user_id):
-        raise HTTPException(status_code=403, detail="Only project creator or manager can add members")
+        raise HTTPException(status_code=403, detail="Only project manager can add members")
     
     # Kiểm tra project tồn tại
     db_project = crud_project.get_project(db, project_id=member.project_id)
@@ -95,19 +103,18 @@ def update_project_member(
     db: Session = Depends(get_db),
     current_user_id: int = 1  # TODO: Lấy từ token
 ):
-    """Cập nhật vai trò thành viên (chỉ creator hoặc manager)"""
+    """Cập nhật vai trò thành viên (chỉ manager)"""
     db_member = crud_project_member.get_project_member(db, member_id=member_id)
     if db_member is None:
         raise HTTPException(status_code=404, detail="Project member not found")
     
     # Kiểm tra quyền
     if not can_manage_members(db, db_member.project_id, current_user_id):
-        raise HTTPException(status_code=403, detail="Only project creator or manager can update member roles")
+        raise HTTPException(status_code=403, detail="Only project manager can update member roles")
     
-    # Không thể đổi vai trò của người tạo project
-    project = crud_project.get_project(db, db_member.project_id)
-    if project and project.created_by == db_member.user_id:
-        raise HTTPException(status_code=400, detail="Cannot change role of project creator")
+    # Không thể đổi vai trò của chính mình
+    if db_member.user_id == current_user_id:
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
     
     db_member = crud_project_member.update_project_member(db, member_id=member_id, member_update=member_update)
     return db_member
@@ -119,19 +126,18 @@ def remove_project_member(
     db: Session = Depends(get_db),
     current_user_id: int = 1  # TODO: Lấy từ token
 ):
-    """Xóa thành viên khỏi dự án (chỉ creator hoặc manager)"""
+    """Xóa thành viên khỏi dự án (chỉ manager)"""
     db_member = crud_project_member.get_project_member(db, member_id=member_id)
     if db_member is None:
         raise HTTPException(status_code=404, detail="Project member not found")
     
     # Kiểm tra quyền
     if not can_manage_members(db, db_member.project_id, current_user_id):
-        raise HTTPException(status_code=403, detail="Only project creator or manager can remove members")
+        raise HTTPException(status_code=403, detail="Only project manager can remove members")
     
-    # Không thể xóa người tạo project
-    project = crud_project.get_project(db, db_member.project_id)
-    if project and project.created_by == db_member.user_id:
-        raise HTTPException(status_code=400, detail="Cannot remove project creator")
+    # Không thể xóa chính mình
+    if db_member.user_id == current_user_id:
+        raise HTTPException(status_code=400, detail="Cannot remove yourself from project")
     
     success = crud_project_member.delete_project_member(db, member_id=member_id)
     if not success:
@@ -149,12 +155,11 @@ def remove_member_by_project_and_user(
     """Xóa thành viên khỏi dự án (theo project_id và user_id)"""
     # Kiểm tra quyền
     if not can_manage_members(db, project_id, current_user_id):
-        raise HTTPException(status_code=403, detail="Only project creator or manager can remove members")
+        raise HTTPException(status_code=403, detail="Only project manager can remove members")
     
-    # Không thể xóa người tạo project
-    project = crud_project.get_project(db, project_id)
-    if project and project.created_by == user_id:
-        raise HTTPException(status_code=400, detail="Cannot remove project creator")
+    # Không thể xóa chính mình
+    if user_id == current_user_id:
+        raise HTTPException(status_code=400, detail="Cannot remove yourself from project")
     
     success = crud_project_member.delete_project_member_by_project_and_user(db, project_id, user_id)
     if not success:

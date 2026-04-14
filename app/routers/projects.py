@@ -217,7 +217,6 @@ def get_project_members(
 # ==================== CÁC ENDPOINT CƠ BẢN ====================
 @router.post("/", response_model=schemas.ProjectResponse)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
-    """Tạo dự án mới"""
     db_project = crud_project.get_project(db, project_id=project.project_id)
     if db_project:
         raise HTTPException(status_code=400, detail="Project code already exists")
@@ -226,13 +225,14 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Tạo project
     new_project = crud_project.create_project(db=db, project=project)
     
-    # Tự thêm người tạo vào project với role manager
+    # Thêm người tạo vào project_members với role manager
     crud_project_member.create_project_member(db, member_schemas.ProjectMemberCreate(
         project_id=project.project_id,
         user_id=project.created_by,
-        role_in_project="manager"
+        role_in_project="manager"  
     ))
     
     return new_project

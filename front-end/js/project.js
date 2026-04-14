@@ -1,6 +1,5 @@
 // Xử lý tạo project (cho create-project.html)
 if (document.getElementById("createProjectForm")) {
-    // Kiểm tra đăng nhập
     if (!isAuthenticated()) {
         window.location.href = "login.html";
     }
@@ -24,20 +23,28 @@ if (document.getElementById("createProjectForm")) {
         const errorDiv = document.getElementById("formError");
         const successDiv = document.getElementById("formSuccess");
         
+        // Disable nút submit
+        const submitBtn = document.querySelector("#createProjectForm button[type='submit']");
+        if (submitBtn) submitBtn.disabled = true;
+        
         try {
             const result = await createProject(projectData);
             successDiv.textContent = "✅ Tạo dự án thành công!";
             errorDiv.textContent = "";
             
-            // Thêm chính mình vào project với role manager
-            await addProjectMember(projectData.project_id, user.user_id, "manager");
+            // ❌ XÓA HOẶC COMMENT DÒNG NÀY
+            // await addProjectMember(projectData.project_id, user.user_id, "manager");
             
             setTimeout(() => {
                 window.location.href = "index.html";
             }, 2000);
+            
         } catch (error) {
-            errorDiv.textContent = error.message;
+            console.error("Create project error:", error);
+            errorDiv.textContent = error.message || "Có lỗi xảy ra khi tạo dự án";
             successDiv.textContent = "";
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
         }
     });
 }
