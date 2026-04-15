@@ -5,3 +5,4 @@ from .crud_task import *
 from .crud_expert_time_estimate import *
 from .crud_cost_estimate import *
 from .crud_project_schedule import *
+from .crud_task_schedule import *

@@ -11,6 +11,12 @@ from .cost_estimate import (
     CostEstimateResponse, CostEstimateUpdate
 )
 
+
+from .task_schedule import (
+    TaskScheduleBase, TaskScheduleCreate,
+    TaskScheduleResponse, TaskScheduleUpdate
+)
+
 __all__ = [
     "UserBase", "UserCreate", "UserResponse", "UserUpdate",
     "ProjectBase", "ProjectCreate", "ProjectResponse", "ProjectUpdate",

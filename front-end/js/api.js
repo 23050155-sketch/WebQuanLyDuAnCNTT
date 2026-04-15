@@ -339,3 +339,25 @@ async function updateProjectMilestone(scheduleId, milestoneData) {
 async function deleteProjectMilestone(scheduleId) {
     return await apiRequest(`/project-schedule/${scheduleId}`, "DELETE");
 }
+
+
+
+
+
+
+// ==================== TASK SCHEDULE APIS ====================
+async function getTaskSchedules(projectId) {
+    return await apiRequest(`/task-schedule?project_id=${projectId}`);
+}
+
+async function createTaskSchedule(scheduleData) {
+    return await apiRequest("/task-schedule", "POST", scheduleData);
+}
+
+async function updateTaskSchedule(scheduleId, scheduleData) {
+    return await apiRequest(`/task-schedule/${scheduleId}`, "PUT", scheduleData);
+}
+
+async function deleteTaskSchedule(scheduleId) {
+    return await apiRequest(`/task-schedule/${scheduleId}`, "DELETE");
+}

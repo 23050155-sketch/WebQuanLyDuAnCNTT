@@ -23,6 +23,7 @@
             <button class="tab-btn" data-tab="time">⏰ Ước lượng thời gian</button>
             <button class="tab-btn" data-tab="estimates">💰 Ước lượng chi phí</button>
             <button class="tab-btn active" data-tab="schedule">📅 Lịch trình</button>
+            <button class="tab-btn" data-tab="taskSchedule">📅 Lịch trình công việc</button>
 
         </div>
 
@@ -67,39 +68,75 @@
 
 
     <!-- Tab Quản lý lịch trình -->
-<div id="scheduleTab" class="tab-content">
-    <div class="section-header">
-        <h2>📅 Lịch trình dự án</h2>
-        <button id="addMilestoneBtn" class="btn-small">+ Thêm cột mốc</button>
-    </div>
-    
-    <!-- View switch -->
-    <div class="view-switch">
-        <button class="view-btn active" onclick="switchScheduleView('list')">📋 Danh sách</button>
-        <button class="view-btn" onclick="switchScheduleView('timeline')">⏰ Timeline</button>
-        <button class="view-btn" onclick="switchScheduleView('gantt')">📊 Biểu đồ Gantt</button>
-    </div>
-    
-    <!-- Danh sách view -->
-    <div id="scheduleListView" class="schedule-list"></div>
-    
-    <!-- Timeline view -->
-    <div id="timelineView" class="timeline-container" style="display: none;"></div>
-    
-    <!-- Gantt view -->
-    <div id="ganttView" class="gantt-container" style="display: none;">
-        <div class="gantt-header">
-            <div class="gantt-title">📊 Biểu đồ Gantt - Tiến độ dự án</div>
+    <div id="scheduleTab" class="tab-content">
+        <div class="section-header">
+            <h2>📅 Lịch trình dự án</h2>
+            <button id="addMilestoneBtn" class="btn-small">+ Thêm cột mốc</button>
         </div>
-        <div id="ganttChart" class="gantt-chart"></div>
-        <div class="gantt-legend">
-            <div class="legend-item"><div class="legend-color completed"></div><span>Hoàn thành</span></div>
-            <div class="legend-item"><div class="legend-color in_progress"></div><span>Đang thực hiện</span></div>
-            <div class="legend-item"><div class="legend-color delayed"></div><span>Trễ hạn</span></div>
-            <div class="legend-item"><div class="legend-color pending"></div><span>Đang chờ</span></div>
+        
+        <!-- View switch -->
+        <div class="view-switch">
+            <button class="view-btn active" onclick="switchScheduleView('list')">📋 Danh sách</button>
+            <button class="view-btn" onclick="switchScheduleView('timeline')">⏰ Timeline</button>
+            <button class="view-btn" onclick="switchScheduleView('gantt')">📊 Biểu đồ Gantt</button>
+        </div>
+        
+        <!-- Danh sách view -->
+        <div id="scheduleListView" class="schedule-list"></div>
+        
+        <!-- Timeline view -->
+        <div id="timelineView" class="timeline-container" style="display: none;"></div>
+        
+        <!-- Gantt view -->
+        <div id="ganttView" class="gantt-container" style="display: none;">
+            <div class="gantt-header">
+                <div class="gantt-title">📊 Biểu đồ Gantt - Tiến độ dự án</div>
+            </div>
+            <div id="ganttChart" class="gantt-chart"></div>
+            <div class="gantt-legend">
+                <div class="legend-item"><div class="legend-color completed"></div><span>Hoàn thành</span></div>
+                <div class="legend-item"><div class="legend-color in_progress"></div><span>Đang thực hiện</span></div>
+                <div class="legend-item"><div class="legend-color delayed"></div><span>Trễ hạn</span></div>
+                <div class="legend-item"><div class="legend-color pending"></div><span>Đang chờ</span></div>
+            </div>
         </div>
     </div>
-</div>
+
+
+
+
+
+    <!-- Tab Lịch trình công việc -->
+    <div id="taskScheduleTab" class="tab-content">
+        <div class="section-header">
+            <h2>📅 Lịch trình công việc</h2>
+            <button id="addTaskScheduleBtn" class="btn-small">+ Thêm lịch trình</button>
+        </div>
+        
+        <!-- Bộ lọc -->
+        <div class="schedule-filters">
+            <select id="filterTaskScheduleUser" class="filter-select">
+                <option value="all">👥 Tất cả thành viên</option>
+            </select>
+            <select id="filterTaskScheduleWeek" class="filter-select">
+                <option value="current">📅 Tuần này</option>
+                <option value="next">📅 Tuần sau</option>
+                <option value="all">📅 Tất cả</option>
+            </select>
+            <input type="date" id="filterTaskScheduleDate" placeholder="Chọn ngày">
+            <button onclick="filterTaskSchedule()" class="btn-small">🔍 Lọc</button>
+            <button onclick="resetTaskScheduleFilter()" class="btn-small">🔄 Reset</button>
+        </div>
+        
+        <!-- Lịch dạng bảng -->
+        <div class="task-schedule-calendar">
+            <div id="taskScheduleHeader" class="calendar-header"></div>
+            <div id="taskScheduleGrid" class="calendar-grid"></div>
+        </div>
+        
+        <!-- Danh sách lịch trình -->
+        <div id="taskScheduleList" class="task-schedule-list"></div>
+    </div>
 
 
 
@@ -748,6 +785,121 @@
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" onclick="closeConfirmDeleteMilestoneModal()">❌ Hủy</button>
                 <button type="button" class="btn-danger" id="confirmDeleteMilestoneBtn" onclick="executeDeleteMilestone()">🗑️ Xóa</button>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+    <!-- Modal thêm lịch trình công việc -->
+    <div id="taskScheduleModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>📅 Thêm lịch trình công việc</h3>
+                <button class="close-modal" onclick="closeTaskScheduleModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addTaskScheduleForm">
+                    <div class="form-group">
+                        <label>Công việc *</label>
+                        <select id="scheduleTaskId" required>
+                            <option value="">-- Chọn công việc --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Thành viên thực hiện *</label>
+                        <select id="scheduleUserId" required>
+                            <option value="">-- Chọn thành viên --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ngày làm việc *</label>
+                        <input type="date" id="scheduleDate" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Số giờ dự kiến *</label>
+                            <input type="number" id="scheduledHours" step="0.5" required placeholder="VD: 8">
+                        </div>
+                        <div class="form-group">
+                            <label>Số giờ thực tế</label>
+                            <input type="number" id="actualHours" step="0.5" value="0" placeholder="VD: 7.5">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ghi chú</label>
+                        <textarea id="scheduleNotes" rows="2" placeholder="Ghi chú thêm..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeTaskScheduleModal()">❌ Hủy</button>
+                <button type="button" class="btn-primary" onclick="addTaskSchedule()">✅ Thêm lịch trình</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal sửa lịch trình công việc -->
+    <div id="editTaskScheduleModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>✏️ Sửa lịch trình công việc</h3>
+                <button class="close-modal" onclick="closeEditTaskScheduleModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editTaskScheduleForm">
+                    <div class="form-group">
+                        <label>Công việc</label>
+                        <input type="text" id="editScheduleTaskName" readonly style="background:#f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Thành viên</label>
+                        <input type="text" id="editScheduleUserName" readonly style="background:#f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Ngày làm việc *</label>
+                        <input type="date" id="editScheduleDate" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Số giờ dự kiến *</label>
+                            <input type="number" id="editScheduledHours" step="0.5" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Số giờ thực tế</label>
+                            <input type="number" id="editActualHours" step="0.5" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ghi chú</label>
+                        <textarea id="editScheduleNotes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditTaskScheduleModal()">❌ Hủy</button>
+                <button type="button" class="btn-primary" onclick="confirmUpdateTaskSchedule()">💾 Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal xác nhận xóa lịch trình -->
+    <div id="confirmDeleteTaskScheduleModal" class="modal confirm-modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                <h3 style="color: white;">⚠️ Xác nhận xóa</h3>
+                <button class="close-modal" onclick="closeConfirmDeleteTaskScheduleModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 30px;">
+                <div class="confirm-icon" style="font-size: 60px;">📅</div>
+                <div class="confirm-message" id="deleteTaskScheduleConfirmMessage">Xóa lịch trình này?</div>
+                <div class="confirm-submessage">Hành động này không thể hoàn tác!</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeConfirmDeleteTaskScheduleModal()">❌ Hủy</button>
+                <button type="button" class="btn-danger" id="confirmDeleteTaskScheduleBtn" onclick="executeDeleteTaskSchedule()">🗑️ Xóa</button>
             </div>
         </div>
     </div>

@@ -5,6 +5,7 @@ from .task import Task
 from .expert_time_estimate import ExpertTimeEstimate
 from .cost_estimate import CostEstimate
 from .project_schedule import ProjectSchedule
+from .task_schedule import TaskSchedule
 
 __all__ = [
     "User",
@@ -14,4 +15,5 @@ __all__ = [
     "ExpertTimeEstimate",
     "CostEstimate"
     "ProjectSchedule"
+    "TaskSchedule"
 ]
