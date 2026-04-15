@@ -2455,3 +2455,54 @@ input[type="range"] {
         gap: 10px;
     }
 }
+
+
+
+
+
+
+/* Tabs đơn giản - dễ nhìn */
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 25px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 0;
+}
+
+.tab-btn {
+    padding: 12px 28px;
+    background: #f5f5f5;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: #555;
+    transition: all 0.3s;
+    border-radius: 12px 12px 0 0;
+    position: relative;
+}
+
+.tab-btn:hover {
+    background: #e8e8e8;
+    color: #333;
+}
+
+/* Tab active */
+.tab-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 -2px 10px rgba(102, 126, 234, 0.3);
+}
+
+/* Hiệu ứng gạch chân cho tab active */
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #667eea;
+    border-radius: 3px;
+}
