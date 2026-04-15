@@ -2029,3 +2029,91 @@ input[type="range"] {
     display: flex;
     gap: 8px;
 }
+
+
+
+
+
+
+/* Calendar cell styles - hỗ trợ nhiều lịch trình */
+.calendar-cell {
+    min-height: 120px;
+    padding: 8px;
+    vertical-align: top;
+    border-right: 1px solid #e0e0e0;
+    background: white;
+}
+
+.calendar-cell.user-cell {
+    background: #f8f9fa;
+    font-weight: bold;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+}
+
+.calendar-cell-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.schedule-item {
+    background: #e9ecef;
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 3px solid #667eea;
+    font-size: 11px;
+}
+
+.schedule-item:hover {
+    background: #dee2e6;
+    transform: translateX(2px);
+}
+
+.schedule-item-task {
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.schedule-item-hours {
+    font-size: 10px;
+    color: #28a745;
+    font-weight: bold;
+    margin-top: 2px;
+}
+
+.schedule-item-actual {
+    font-size: 10px;
+    color: #17a2b8;
+    margin-top: 2px;
+}
+
+.calendar-cell-empty {
+    color: #ccc;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+}
+
+/* Responsive cho calendar */
+@media (max-width: 768px) {
+    .calendar-header-cell {
+        font-size: 10px;
+        padding: 6px;
+    }
+    
+    .schedule-item {
+        font-size: 9px;
+        padding: 4px 6px;
+    }
+    
+    .schedule-item-task {
+        font-size: 9px;
+    }
+}

@@ -5,13 +5,14 @@ from typing import Optional
 class TaskScheduleBase(BaseModel):
     task_id: int
     user_id: int
-    scheduled_date: date
+    start_date: date          # ✅ Ngày bắt đầu
+    end_date: date            # ✅ Ngày kết thúc
     scheduled_hours: float
     actual_hours: float = 0
     notes: Optional[str] = None
 
 class TaskScheduleCreate(TaskScheduleBase):
-    project_id: str  # Chỉ dùng để kiểm tra, không lưu vào DB
+    project_id: str
 
 class TaskScheduleResponse(TaskScheduleBase):
     schedule_id: int
@@ -22,7 +23,8 @@ class TaskScheduleResponse(TaskScheduleBase):
         from_attributes = True
 
 class TaskScheduleUpdate(BaseModel):
-    scheduled_date: Optional[date] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     scheduled_hours: Optional[float] = None
     actual_hours: Optional[float] = None
     notes: Optional[str] = None

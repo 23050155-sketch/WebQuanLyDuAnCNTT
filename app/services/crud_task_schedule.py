@@ -24,11 +24,11 @@ def get_schedules_by_user(db: Session, user_id: int, skip: int = 0, limit: int =
     ).offset(skip).limit(limit).all()
 
 def create_schedule(db: Session, schedule: schemas.TaskScheduleCreate):
-    # Tạo schedule KHÔNG có project_id (vì model không có trường này)
     db_schedule = TaskSchedule(
         task_id=schedule.task_id,
         user_id=schedule.user_id,
-        scheduled_date=schedule.scheduled_date,
+        start_date=schedule.start_date,
+        end_date=schedule.end_date,
         scheduled_hours=schedule.scheduled_hours,
         actual_hours=schedule.actual_hours,
         notes=schedule.notes

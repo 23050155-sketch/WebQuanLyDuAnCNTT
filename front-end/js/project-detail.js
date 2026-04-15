@@ -2279,11 +2279,28 @@ function canManageSchedule() {
     return currentUserRoleInProject === 'manager';
 }
 
+function canManageTaskSchedule() {
+    return currentUserRoleInProject === 'manager';
+}
+
+function canAddTaskSchedule() {
+    return currentUserRoleInProject === 'manager';
+}
+
+function canEditTaskSchedule() {
+    return currentUserRoleInProject === 'manager';
+}
+
+function canDeleteTaskSchedule() {
+    return currentUserRoleInProject === 'manager';
+}
+
 
 // ==================== LỊCH TRÌNH CÔNG VIỆC ====================
 let currentEditingTaskSchedule = null;
 let pendingDeleteTaskSchedule = null;
 
+// Load danh sách lịch trình công việc
 // Load danh sách lịch trình công việc
 async function loadTaskSchedules() {
     try {
@@ -2312,10 +2329,7 @@ async function loadTaskSchedules() {
         const userMap = new Map();
         users.forEach(user => userMap.set(user.user_id, user));
         
-        const memberMap = new Map();
-        members.forEach(member => memberMap.set(member.user_id, member));
-        
-        const canEdit = canManageSchedule();
+        const canEdit = canManageTaskSchedule();
         
         // Hiển thị danh sách
         container.innerHTML = schedules.map(schedule => {
@@ -2327,7 +2341,7 @@ async function loadTaskSchedules() {
                     <div class="task-schedule-info">
                         <span class="task-name">📋 ${task?.task_name || `Task #${schedule.task_id}`}</span>
                         <span class="user-name">👤 ${user?.fullname || `User #${schedule.user_id}`}</span>
-                        <div class="schedule-date">📅 ${new Date(schedule.scheduled_date).toLocaleDateString('vi-VN')}</div>
+                        <div class="schedule-date">📅 ${new Date(schedule.start_date).toLocaleDateString('vi-VN')} → ${new Date(schedule.end_date).toLocaleDateString('vi-VN')}</div>
                     </div>
                     <div class="task-schedule-hours">
                         <div class="planned">⏱️ Dự kiến: ${schedule.scheduled_hours}h</div>
@@ -2359,6 +2373,7 @@ async function loadTaskSchedules() {
 }
 
 // Hiển thị lịch dạng bảng
+// Hiển thị lịch dạng bảng - HỖ TRỢ NHIỀU LỊCH TRÌNH TRONG CÙNG MỘT NGÀY
 async function renderTaskScheduleCalendar(schedules, taskMap, userMap) {
     const calendarContainer = document.getElementById("taskScheduleGrid");
     const headerContainer = document.getElementById("taskScheduleHeader");
@@ -2403,28 +2418,39 @@ async function renderTaskScheduleCalendar(schedules, taskMap, userMap) {
     for (const [userId, userSchedules] of schedulesByUser) {
         const user = userMap.get(userId);
         gridHtml += `<div class="calendar-row">`;
-        gridHtml += `<div class="calendar-cell" style="background: #f8f9fa; font-weight: bold;">${user?.fullname || `User #${userId}`}</div>`;
+        gridHtml += `<div class="calendar-cell user-cell" style="background: #f8f9fa; font-weight: bold; vertical-align: top;">${user?.fullname || `User #${userId}`}</div>`;
         
         for (const day of weekDays) {
             const dayStr = day.toISOString().split('T')[0];
-            const schedule = userSchedules.find(s => s.scheduled_date === dayStr);
             const isToday = day.toDateString() === new Date().toDateString();
             
-            gridHtml += `
-                <div class="calendar-cell ${isToday ? 'today' : ''}">
-                    ${schedule ? `
-                        <div class="schedule-item" onclick="showEditTaskScheduleModal(${schedule.schedule_id})">
-                            📋 ${taskMap.get(schedule.task_id)?.task_name?.substring(0, 15) || `Task #${schedule.task_id}`}
-                        </div>
-                        <div class="schedule-item hours">
-                            ⏱️ ${schedule.scheduled_hours}h
-                        </div>
-                        ${schedule.actual_hours > 0 ? `
-                            <div class="schedule-item actual">
-                                ✅ ${schedule.actual_hours}h
+            // Tìm TẤT CẢ schedules trong ngày này
+            const daySchedules = userSchedules.filter(s => 
+                s.start_date <= dayStr && s.end_date >= dayStr
+            );
+            
+            let cellContent = '';
+            
+            if (daySchedules.length > 0) {
+                // Hiển thị nhiều lịch trình
+                cellContent = `
+                    <div class="calendar-cell-content">
+                        ${daySchedules.map(schedule => `
+                            <div class="schedule-item" onclick="showEditTaskScheduleModal(${schedule.schedule_id})" title="${taskMap.get(schedule.task_id)?.task_name || `Task #${schedule.task_id}`} - ${schedule.scheduled_hours}h">
+                                <div class="schedule-item-task">📋 ${taskMap.get(schedule.task_id)?.task_name?.substring(0, 12) || `Task #${schedule.task_id}`}</div>
+                                <div class="schedule-item-hours">⏱️ ${schedule.scheduled_hours}h</div>
+                                ${schedule.actual_hours > 0 ? `<div class="schedule-item-actual">✅ ${schedule.actual_hours}h</div>` : ''}
                             </div>
-                        ` : ''}
-                    ` : '—'}
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                cellContent = '<div class="calendar-cell-empty">—</div>';
+            }
+            
+            gridHtml += `
+                <div class="calendar-cell ${isToday ? 'today' : ''}" style="vertical-align: top;">
+                    ${cellContent}
                 </div>
             `;
         }
@@ -2446,6 +2472,7 @@ async function updateScheduleFilters(members, userMap) {
 }
 
 // Lọc lịch trình
+// Lọc lịch trình
 async function filterTaskSchedule() {
     const userId = document.getElementById("filterTaskScheduleUser").value;
     const weekFilter = document.getElementById("filterTaskScheduleWeek").value;
@@ -2458,7 +2485,7 @@ async function filterTaskSchedule() {
     }
     
     if (dateFilter) {
-        schedules = schedules.filter(s => s.scheduled_date === dateFilter);
+        schedules = schedules.filter(s => s.start_date <= dateFilter && s.end_date >= dateFilter);
     } else if (weekFilter === 'current') {
         const today = new Date();
         const startOfWeek = new Date(today);
@@ -2466,8 +2493,9 @@ async function filterTaskSchedule() {
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
         schedules = schedules.filter(s => {
-            const date = new Date(s.scheduled_date);
-            return date >= startOfWeek && date <= endOfWeek;
+            const start = new Date(s.start_date);
+            const end = new Date(s.end_date);
+            return (start <= endOfWeek && end >= startOfWeek);
         });
     } else if (weekFilter === 'next') {
         const today = new Date();
@@ -2476,8 +2504,9 @@ async function filterTaskSchedule() {
         const endOfNextWeek = new Date(startOfNextWeek);
         endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
         schedules = schedules.filter(s => {
-            const date = new Date(s.scheduled_date);
-            return date >= startOfNextWeek && date <= endOfNextWeek;
+            const start = new Date(s.start_date);
+            const end = new Date(s.end_date);
+            return (start <= endOfNextWeek && end >= startOfNextWeek);
         });
     }
     
@@ -2490,7 +2519,7 @@ async function filterTaskSchedule() {
     users.forEach(user => userMap.set(user.user_id, user));
     
     const container = document.getElementById("taskScheduleList");
-    const canEdit = canManageSchedule();
+    const canEdit = canManageTaskSchedule();
     
     if (schedules.length === 0) {
         container.innerHTML = '<div class="empty-state">📅 Không có lịch trình nào phù hợp</div>';
@@ -2505,7 +2534,7 @@ async function filterTaskSchedule() {
                 <div class="task-schedule-info">
                     <span class="task-name">📋 ${task?.task_name || `Task #${schedule.task_id}`}</span>
                     <span class="user-name">👤 ${user?.fullname || `User #${schedule.user_id}`}</span>
-                    <div class="schedule-date">📅 ${new Date(schedule.scheduled_date).toLocaleDateString('vi-VN')}</div>
+                    <div class="schedule-date">📅 ${new Date(schedule.start_date).toLocaleDateString('vi-VN')} → ${new Date(schedule.end_date).toLocaleDateString('vi-VN')}</div>
                 </div>
                 <div class="task-schedule-hours">
                     <div class="planned">⏱️ Dự kiến: ${schedule.scheduled_hours}h</div>
@@ -2530,16 +2559,27 @@ function resetTaskScheduleFilter() {
 }
 
 // Hiển thị modal thêm lịch trình
+// Hiển thị modal thêm lịch trình
+// Hiển thị modal thêm lịch trình
 async function showAddTaskScheduleModal() {
-    if (!canManageSchedule()) {
+    console.log("showAddTaskScheduleModal called"); // Debug
+    
+    if (!canAddTaskSchedule()) {
         showCustomAlert("Không có quyền!", "Chỉ quản lý mới có thể thêm lịch trình", "❌");
         return;
     }
     
     try {
+        console.log("Loading tasks and members..."); // Debug
+        
         const tasks = await getProjectTasks(currentProjectCode);
+        console.log("Tasks loaded:", tasks); // Debug
+        
         const members = await getProjectMembers(currentProjectCode);
+        console.log("Members loaded:", members); // Debug
+        
         const users = await getUsers();
+        console.log("Users loaded:", users); // Debug
         
         const taskSelect = document.getElementById("scheduleTaskId");
         const userSelect = document.getElementById("scheduleUserId");
@@ -2547,6 +2587,9 @@ async function showAddTaskScheduleModal() {
         if (taskSelect) {
             taskSelect.innerHTML = '<option value="">-- Chọn công việc --</option>' + 
                 tasks.map(task => `<option value="${task.task_id}">${escapeHtml(task.task_name)}</option>`).join("");
+            console.log("Task select populated"); // Debug
+        } else {
+            console.error("scheduleTaskId element not found!");
         }
         
         if (userSelect) {
@@ -2554,17 +2597,33 @@ async function showAddTaskScheduleModal() {
             users.forEach(user => userMap.set(user.user_id, user));
             userSelect.innerHTML = '<option value="">-- Chọn thành viên --</option>' + 
                 members.map(member => `<option value="${member.user_id}">${userMap.get(member.user_id)?.fullname || `User #${member.user_id}`}</option>`).join("");
+            console.log("User select populated"); // Debug
+        } else {
+            console.error("scheduleUserId element not found!");
         }
         
-        document.getElementById("scheduleDate").value = new Date().toISOString().split('T')[0];
+        const today = new Date().toISOString().split('T')[0];
+        const startDateInput = document.getElementById("scheduleStartDate");
+        const endDateInput = document.getElementById("scheduleEndDate");
+        
+        if (startDateInput) startDateInput.value = today;
+        if (endDateInput) endDateInput.value = today;
+        
         document.getElementById("scheduledHours").value = 8;
         document.getElementById("actualHours").value = 0;
         document.getElementById("scheduleNotes").value = "";
         
         const modal = document.getElementById("taskScheduleModal");
-        if (modal) modal.style.display = "flex";
+        if (modal) {
+            console.log("Modal found, opening..."); // Debug
+            modal.style.display = "flex";
+        } else {
+            console.error("taskScheduleModal element not found!");
+            showCustomAlert("Lỗi!", "Không tìm thấy modal thêm lịch trình", "❌");
+        }
         
     } catch (error) {
+        console.error("Error in showAddTaskScheduleModal:", error);
         showCustomAlert("Lỗi!", error.message, "❌");
     }
 }
@@ -2578,11 +2637,17 @@ function closeTaskScheduleModal() {
 async function addTaskSchedule() {
     const taskId = document.getElementById("scheduleTaskId").value;
     const userId = document.getElementById("scheduleUserId").value;
-    const scheduleDate = document.getElementById("scheduleDate").value;
+    const startDate = document.getElementById("scheduleStartDate").value;
+    const endDate = document.getElementById("scheduleEndDate").value;
     const scheduledHours = parseFloat(document.getElementById("scheduledHours").value);
     
-    if (!taskId || !userId || !scheduleDate || !scheduledHours) {
+    if (!taskId || !userId || !startDate || !endDate || !scheduledHours) {
         showCustomAlert("Thiếu thông tin", "Vui lòng điền đầy đủ thông tin", "❌");
+        return;
+    }
+    
+    if (new Date(startDate) > new Date(endDate)) {
+        showCustomAlert("Lỗi!", "Ngày bắt đầu không thể lớn hơn ngày kết thúc", "❌");
         return;
     }
     
@@ -2590,7 +2655,8 @@ async function addTaskSchedule() {
         project_id: currentProjectCode,
         task_id: parseInt(taskId),
         user_id: parseInt(userId),
-        scheduled_date: scheduleDate,
+        start_date: startDate,
+        end_date: endDate,
         scheduled_hours: scheduledHours,
         actual_hours: parseFloat(document.getElementById("actualHours").value) || 0,
         notes: document.getElementById("scheduleNotes").value
@@ -2613,7 +2679,7 @@ async function addTaskSchedule() {
 
 // Các hàm sửa/xóa lịch trình tương tự...
 async function showEditTaskScheduleModal(scheduleId) {
-    if (!canManageSchedule()) {
+    if (!canEditTaskSchedule()) {
         showCustomAlert("Không có quyền!", "Chỉ quản lý mới có thể sửa lịch trình", "❌");
         return;
     }
@@ -2632,11 +2698,12 @@ async function showEditTaskScheduleModal(scheduleId) {
         const task = tasks.find(t => t.task_id === schedule.task_id);
         const user = users.find(u => u.user_id === schedule.user_id);
         
-        currentEditingTaskSchedule = schedule;  // ✅ QUAN TRỌNG: phải có dòng này
+        currentEditingTaskSchedule = schedule;
         
         document.getElementById("editScheduleTaskName").value = task?.task_name || `Task #${schedule.task_id}`;
         document.getElementById("editScheduleUserName").value = user?.fullname || `User #${schedule.user_id}`;
-        document.getElementById("editScheduleDate").value = schedule.scheduled_date;
+        document.getElementById("editScheduleStartDate").value = schedule.start_date;
+        document.getElementById("editScheduleEndDate").value = schedule.end_date;
         document.getElementById("editScheduledHours").value = schedule.scheduled_hours;
         document.getElementById("editActualHours").value = schedule.actual_hours || 0;
         document.getElementById("editScheduleNotes").value = schedule.notes || "";
@@ -2656,14 +2723,23 @@ async function confirmUpdateTaskSchedule() {
         return;
     }
     
+    const startDate = document.getElementById("editScheduleStartDate").value;
+    const endDate = document.getElementById("editScheduleEndDate").value;
+    
+    if (new Date(startDate) > new Date(endDate)) {
+        showCustomAlert("Lỗi!", "Ngày bắt đầu không thể lớn hơn ngày kết thúc", "❌");
+        return;
+    }
+    
     const updateData = {
-        scheduled_date: document.getElementById("editScheduleDate").value,
+        start_date: startDate,
+        end_date: endDate,
         scheduled_hours: parseFloat(document.getElementById("editScheduledHours").value),
         actual_hours: parseFloat(document.getElementById("editActualHours").value) || 0,
         notes: document.getElementById("editScheduleNotes").value
     };
     
-    if (!updateData.scheduled_date || !updateData.scheduled_hours) {
+    if (!updateData.start_date || !updateData.end_date || !updateData.scheduled_hours) {
         showCustomAlert("Thiếu thông tin", "Vui lòng điền đầy đủ thông tin", "❌");
         return;
     }

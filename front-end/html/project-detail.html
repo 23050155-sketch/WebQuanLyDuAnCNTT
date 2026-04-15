@@ -792,7 +792,6 @@
 
 
 
-
     <!-- Modal thêm lịch trình công việc -->
     <div id="taskScheduleModal" class="modal" style="display:none;">
         <div class="modal-content" style="max-width: 500px;">
@@ -814,9 +813,15 @@
                             <option value="">-- Chọn thành viên --</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Ngày làm việc *</label>
-                        <input type="date" id="scheduleDate" required>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ngày bắt đầu *</label>
+                            <input type="date" id="scheduleStartDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Ngày kết thúc *</label>
+                            <input type="date" id="scheduleEndDate" required>
+                        </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -858,9 +863,15 @@
                         <label>Thành viên</label>
                         <input type="text" id="editScheduleUserName" readonly style="background:#f0f0f0;">
                     </div>
-                    <div class="form-group">
-                        <label>Ngày làm việc *</label>
-                        <input type="date" id="editScheduleDate" required>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ngày bắt đầu *</label>
+                            <input type="date" id="editScheduleStartDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Ngày kết thúc *</label>
+                            <input type="date" id="editScheduleEndDate" required>
+                        </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
