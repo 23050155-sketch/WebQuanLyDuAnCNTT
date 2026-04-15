@@ -146,6 +146,7 @@ async function loadProjectDetail() {
         await loadMembers();
         await loadCostEstimates();
         await loadTimeEstimates();
+        await loadProjectSchedule();
         
     } catch (error) {
         console.error("Error loading project:", error);
@@ -1728,6 +1729,564 @@ async function executeDeleteCostEstimate() {
     }
 }
 
+
+
+
+// ==================== QUẢN LÝ LỊCH TRÌNH DỰ ÁN ====================
+let currentEditingMilestone = null;
+let pendingDeleteMilestone = null;
+
+// Load danh sách cột mốc
+async function loadProjectSchedule() {
+    try {
+        const milestones = await getProjectMilestones(currentProjectCode);
+        const listContainer = document.getElementById("scheduleListView");
+        const timelineContainer = document.getElementById("timelineView");
+        const ganttContainer = document.getElementById("ganttView");
+        
+        if (!listContainer) return;
+        
+        if (!milestones || milestones.length === 0) {
+            listContainer.innerHTML = '<div class="empty-state">📅 Chưa có cột mốc nào. Hãy thêm cột mốc đầu tiên!</div>';
+            if (timelineContainer) timelineContainer.innerHTML = '';
+            if (ganttContainer) ganttContainer.innerHTML = '';
+            return;
+        }
+        
+        const isManager = currentUserRoleInProject === 'manager';
+        const sortedMilestones = [...milestones].sort((a, b) => new Date(a.milestone_date) - new Date(b.milestone_date));
+        
+        // Hiển thị danh sách
+        listContainer.innerHTML = sortedMilestones.map(milestone => `
+            <div class="schedule-card ${milestone.status}" data-schedule-id="${milestone.schedule_id}">
+                <div class="schedule-header">
+                    <div class="schedule-title">
+                        ${getMilestoneIcon(milestone.milestone_type)} ${escapeHtml(milestone.milestone_name)}
+                    </div>
+                    <div class="schedule-badges">
+                        <span class="schedule-type ${milestone.milestone_type}">${getMilestoneTypeName(milestone.milestone_type)}</span>
+                        <span class="schedule-status status-${milestone.status}">${getMilestoneStatusName(milestone.status)}</span>
+                    </div>
+                </div>
+                ${milestone.milestone_description ? `<div class="schedule-desc">📝 ${escapeHtml(milestone.milestone_description)}</div>` : ''}
+                <div class="schedule-date">
+                    📅 ${new Date(milestone.milestone_date).toLocaleDateString('vi-VN')}
+                </div>
+                <div class="schedule-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${milestone.actual_progress || 0}%"></div>
+                    </div>
+                    <div style="font-size: 12px; margin-top: 5px;">Tiến độ: ${milestone.actual_progress || 0}%</div>
+                </div>
+                ${milestone.notes ? `<div class="schedule-notes">📌 ${escapeHtml(milestone.notes)}</div>` : ''}
+                <div class="schedule-footer">
+                    <div class="schedule-meta">
+                        <small>🕐 Cập nhật: ${new Date(milestone.updated_at).toLocaleDateString('vi-VN')}</small>
+                    </div>
+                    ${isManager ? `
+                        <div class="schedule-actions">
+                            <button onclick="showEditMilestoneModal(${milestone.schedule_id})" class="btn-icon" title="Sửa">✏️</button>
+                            <button onclick="showConfirmDeleteMilestoneModal(${milestone.schedule_id}, '${escapeHtml(milestone.milestone_name)}')" class="btn-icon btn-danger" title="Xóa">🗑️</button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `).join("");
+        
+        // Render các view khác nếu đang active
+        const activeView = document.querySelector('.view-btn.active')?.dataset?.view || 'list';
+        
+        if (activeView === 'gantt') {
+            const ganttContainer = document.getElementById("ganttView");
+            if (ganttContainer) ganttContainer.style.display = 'block';
+            renderGanttChart();
+        } else if (activeView === 'timeline') {
+            const timelineContainer = document.getElementById("timelineView");
+            if (timelineContainer) timelineContainer.style.display = 'block';
+            renderTimeline();
+        } else {
+            // Ẩn các view khác
+            if (timelineContainer) timelineContainer.style.display = 'none';
+            if (ganttContainer) ganttContainer.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error("Error loading project schedule:", error);
+        const container = document.getElementById("scheduleListView");
+        if (container) {
+            container.innerHTML = '<div class="error-state">❌ Lỗi tải lịch trình dự án</div>';
+        }
+    }
+}
+
+// Cuộn đến cột mốc
+function scrollToMilestone(scheduleId) {
+    const element = document.querySelector(`.schedule-card[data-schedule-id="${scheduleId}"]`);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.style.backgroundColor = '#fff3cd';
+        setTimeout(() => {
+            element.style.backgroundColor = '';
+        }, 2000);
+    }
+}
+
+// Lấy icon cho cột mốc
+function getMilestoneIcon(type) {
+    const icons = {
+        'start': '🚀',
+        'end': '🏁',
+        'phase_start': '📌',
+        'phase_end': '✅',
+        'review': '🔍',
+        'delivery': '📦',
+        'other': '📋'
+    };
+    return icons[type] || '📅';
+}
+
+// Lấy tên loại cột mốc
+function getMilestoneTypeName(type) {
+    const names = {
+        'start': 'Bắt đầu dự án',
+        'end': 'Kết thúc dự án',
+        'phase_start': 'Bắt đầu giai đoạn',
+        'phase_end': 'Kết thúc giai đoạn',
+        'review': 'Đánh giá',
+        'delivery': 'Bàn giao',
+        'other': 'Khác'
+    };
+    return names[type] || type;
+}
+
+// Lấy tên trạng thái cột mốc
+function getMilestoneStatusName(status) {
+    const names = {
+        'pending': '⏳ Đang chờ',
+        'in_progress': '🔄 Đang thực hiện',
+        'completed': '✅ Hoàn thành',
+        'delayed': '⚠️ Trễ hạn',
+        'cancelled': '❌ Đã hủy'
+    };
+    return names[status] || status;
+}
+
+// Hiển thị modal thêm cột mốc
+async function showAddMilestoneModal() {
+    if (currentUserRoleInProject !== 'manager') {
+        showCustomAlert("Không có quyền!", "Chỉ quản lý mới có thể thêm cột mốc", "❌");
+        return;
+    }
+    
+    // Reset form
+    document.getElementById("addMilestoneForm")?.reset();
+    document.getElementById("milestoneDate").value = new Date().toISOString().split('T')[0];
+    document.getElementById("milestoneProgress").value = 0;
+    document.getElementById("progressValue").textContent = "0%";
+    
+    // Thêm event cho progress slider
+    const progressSlider = document.getElementById("milestoneProgress");
+    const progressValue = document.getElementById("progressValue");
+    if (progressSlider && progressValue) {
+        progressSlider.oninput = function() {
+            progressValue.textContent = this.value + "%";
+        };
+    }
+    
+    const modal = document.getElementById("milestoneModal");
+    if (modal) {
+        modal.style.display = "flex";
+    }
+}
+
+function closeMilestoneModal() {
+    const modal = document.getElementById("milestoneModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
+
+// Thêm cột mốc
+async function addMilestone() {
+    const milestoneName = document.getElementById("milestoneName").value;
+    if (!milestoneName) {
+        showCustomAlert("Thiếu thông tin", "Vui lòng nhập tên cột mốc", "❌");
+        return;
+    }
+    
+    const milestoneDate = document.getElementById("milestoneDate").value;
+    if (!milestoneDate) {
+        showCustomAlert("Thiếu thông tin", "Vui lòng chọn ngày thực hiện", "❌");
+        return;
+    }
+    
+    const user = getUserInfo();
+    const milestoneData = {
+        project_id: currentProjectCode,
+        milestone_name: milestoneName,
+        milestone_description: document.getElementById("milestoneDescription").value,
+        milestone_date: milestoneDate,
+        milestone_type: document.getElementById("milestoneType").value,
+        status: document.getElementById("milestoneStatus").value,
+        actual_progress: parseInt(document.getElementById("milestoneProgress").value) || 0,
+        notes: document.getElementById("milestoneNotes").value,
+        updated_by: user.user_id
+    };
+    
+    const addButton = document.querySelector("#milestoneModal .btn-primary");
+    if (addButton) addButton.disabled = true;
+    
+    try {
+        await createProjectMilestone(milestoneData);
+        showCustomAlert("Thêm thành công!", "Đã thêm cột mốc mới", "✅");
+        closeMilestoneModal();
+        await loadProjectSchedule();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    } finally {
+        if (addButton) addButton.disabled = false;
+    }
+}
+
+// Hiển thị modal sửa cột mốc
+async function showEditMilestoneModal(scheduleId) {
+    if (currentUserRoleInProject !== 'manager') {
+        showCustomAlert("Không có quyền!", "Chỉ quản lý mới có thể sửa cột mốc", "❌");
+        return;
+    }
+    
+    try {
+        const milestones = await getProjectMilestones(currentProjectCode);
+        const milestone = milestones.find(m => m.schedule_id === scheduleId);
+        
+        if (!milestone) {
+            showCustomAlert("Lỗi!", "Không tìm thấy cột mốc", "❌");
+            return;
+        }
+        
+        currentEditingMilestone = milestone;
+        
+        document.getElementById("editMilestoneName").value = milestone.milestone_name;
+        document.getElementById("editMilestoneDescription").value = milestone.milestone_description || "";
+        document.getElementById("editMilestoneDate").value = milestone.milestone_date;
+        document.getElementById("editMilestoneType").value = milestone.milestone_type;
+        document.getElementById("editMilestoneStatus").value = milestone.status;
+        document.getElementById("editMilestoneProgress").value = milestone.actual_progress || 0;
+        document.getElementById("editProgressValue").textContent = `${milestone.actual_progress || 0}%`;
+        document.getElementById("editMilestoneNotes").value = milestone.notes || "";
+        
+        // Thêm event cho progress slider
+        const progressSlider = document.getElementById("editMilestoneProgress");
+        const progressValue = document.getElementById("editProgressValue");
+        if (progressSlider && progressValue) {
+            progressSlider.oninput = function() {
+                progressValue.textContent = this.value + "%";
+            };
+        }
+        
+        const modal = document.getElementById("editMilestoneModal");
+        if (modal) {
+            modal.style.display = "flex";
+        }
+        
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    }
+}
+
+function closeEditMilestoneModal() {
+    const modal = document.getElementById("editMilestoneModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+    currentEditingMilestone = null;
+}
+
+// Cập nhật cột mốc
+async function confirmUpdateMilestone() {
+    if (!currentEditingMilestone) return;
+    
+    const user = getUserInfo();
+    const updateData = {
+        milestone_name: document.getElementById("editMilestoneName").value,
+        milestone_description: document.getElementById("editMilestoneDescription").value,
+        milestone_date: document.getElementById("editMilestoneDate").value,
+        milestone_type: document.getElementById("editMilestoneType").value,
+        status: document.getElementById("editMilestoneStatus").value,
+        actual_progress: parseInt(document.getElementById("editMilestoneProgress").value) || 0,
+        notes: document.getElementById("editMilestoneNotes").value,
+        updated_by: user.user_id
+    };
+    
+    if (!updateData.milestone_name) {
+        showCustomAlert("Thiếu thông tin", "Vui lòng nhập tên cột mốc", "❌");
+        return;
+    }
+    
+    const saveButton = document.querySelector("#editMilestoneModal .btn-primary");
+    if (saveButton) saveButton.disabled = true;
+    
+    try {
+        await updateProjectMilestone(currentEditingMilestone.schedule_id, updateData);
+        showCustomAlert("Cập nhật thành công!", "Đã cập nhật cột mốc", "✅");
+        closeEditMilestoneModal();
+        await loadProjectSchedule();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    } finally {
+        if (saveButton) saveButton.disabled = false;
+    }
+}
+
+// Xóa cột mốc
+function showConfirmDeleteMilestoneModal(scheduleId, milestoneName) {
+    pendingDeleteMilestone = {
+        id: scheduleId,
+        name: milestoneName
+    };
+    
+    const messageEl = document.getElementById("deleteMilestoneConfirmMessage");
+    if (messageEl) {
+        messageEl.innerHTML = `🗑️ Xóa cột mốc "${escapeHtml(milestoneName)}"?`;
+    }
+    
+    const modal = document.getElementById("confirmDeleteMilestoneModal");
+    if (modal) {
+        modal.style.display = "flex";
+    }
+}
+
+function closeConfirmDeleteMilestoneModal() {
+    const modal = document.getElementById("confirmDeleteMilestoneModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+    pendingDeleteMilestone = null;
+}
+
+async function executeDeleteMilestone() {
+    if (!pendingDeleteMilestone) return;
+    
+    const deleteButton = document.getElementById("confirmDeleteMilestoneBtn");
+    if (deleteButton) {
+        deleteButton.disabled = true;
+        deleteButton.textContent = "⏳ Đang xóa...";
+    }
+    
+    try {
+        await deleteProjectMilestone(pendingDeleteMilestone.id);
+        showCustomAlert("Xóa thành công!", `Đã xóa cột mốc "${pendingDeleteMilestone.name}"`, "✅");
+        closeConfirmDeleteMilestoneModal();
+        await loadProjectSchedule();
+    } catch (error) {
+        showCustomAlert("Lỗi!", error.message, "❌");
+    } finally {
+        if (deleteButton) {
+            deleteButton.disabled = false;
+            deleteButton.textContent = "🗑️ Xóa";
+        }
+    }
+}
+
+
+
+
+
+
+
+// ==================== BIỂU ĐỒ GANTT ====================
+let currentView = 'list';
+let ganttZoomLevel = 1;
+let ganttStartDate = null;
+let ganttEndDate = null;
+
+// Chuyển đổi view
+// Sửa lại hàm switchScheduleView:
+function switchScheduleView(view) {
+    currentView = view;
+    
+    const listView = document.getElementById("scheduleListView");
+    const timelineView = document.getElementById("timelineView");
+    const ganttView = document.getElementById("ganttView");
+    const viewBtns = document.querySelectorAll(".view-btn");
+    
+    // Cập nhật active button - dùng dataset
+    viewBtns.forEach(btn => {
+        btn.classList.remove("active");
+        if (btn.getAttribute("data-view") === view) {
+            btn.classList.add("active");
+        }
+    });
+    
+    // Hiển thị view tương ứng
+    if (listView) listView.style.display = view === 'list' ? 'block' : 'none';
+    if (timelineView) timelineView.style.display = view === 'timeline' ? 'block' : 'none';
+    if (ganttView) ganttView.style.display = view === 'gantt' ? 'block' : 'none';
+    
+    // Load lại dữ liệu cho view hiện tại
+    if (view === 'gantt') {
+        renderGanttChart();
+    } else if (view === 'timeline') {
+        renderTimeline();
+    }
+}
+
+// Render Timeline
+async function renderTimeline() {
+    try {
+        const milestones = await getProjectMilestones(currentProjectCode);
+        const timelineContainer = document.getElementById("timelineView");
+        
+        if (!timelineContainer) return;
+        
+        if (!milestones || milestones.length === 0) {
+            timelineContainer.innerHTML = '<div class="empty-state">📅 Chưa có cột mốc nào</div>';
+            return;
+        }
+        
+        const sortedMilestones = [...milestones].sort((a, b) => new Date(a.milestone_date) - new Date(b.milestone_date));
+        
+        timelineContainer.innerHTML = `
+            <div class="timeline">
+                <div class="timeline-line"></div>
+                ${sortedMilestones.map(milestone => `
+                    <div class="timeline-node ${milestone.status}" onclick="scrollToMilestone(${milestone.schedule_id})">
+                        <div class="timeline-dot">${getMilestoneIcon(milestone.milestone_type)}</div>
+                        <div class="timeline-date">${new Date(milestone.milestone_date).toLocaleDateString()}</div>
+                        <div class="timeline-title">${escapeHtml(milestone.milestone_name.substring(0, 20))}${milestone.milestone_name.length > 20 ? '...' : ''}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error("Error rendering timeline:", error);
+    }
+}
+
+// Render Gantt Chart
+async function renderGanttChart() {
+    try {
+        const milestones = await getProjectMilestones(currentProjectCode);
+        const container = document.getElementById("ganttChart");
+        
+        if (!container) return;
+        
+        if (!milestones || milestones.length === 0) {
+            container.innerHTML = '<div class="empty-state">📅 Chưa có cột mốc nào để hiển thị Gantt</div>';
+            return;
+        }
+        
+        // Xác định khoảng thời gian
+        const dates = milestones.map(m => new Date(m.milestone_date));
+        const minDate = new Date(Math.min(...dates));
+        const maxDate = new Date(Math.max(...dates));
+        
+        // Mở rộng biên độ 14 ngày
+        ganttStartDate = new Date(minDate);
+        ganttStartDate.setDate(ganttStartDate.getDate() - 14);
+        ganttEndDate = new Date(maxDate);
+        ganttEndDate.setDate(ganttEndDate.getDate() + 14);
+        
+        const totalDays = Math.ceil((ganttEndDate - ganttStartDate) / (1000 * 60 * 60 * 24));
+        const visibleDays = Math.max(totalDays, 30) / ganttZoomLevel;
+        
+        // Tạo header tháng
+        const months = [];
+        let currentMonth = new Date(ganttStartDate);
+        while (currentMonth <= ganttEndDate) {
+            months.push({
+                name: currentMonth.toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' }),
+                start: new Date(currentMonth),
+                end: new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
+            });
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+        }
+        
+        // Tạo header HTML
+        let headerHtml = `<div class="gantt-timeline">`;
+        months.forEach(month => {
+            const monthDays = Math.ceil((month.end - month.start) / (1000 * 60 * 60 * 24)) + 1;
+            const widthPercent = (monthDays / totalDays) * 100;
+            headerHtml += `<div class="gantt-timeline-month" style="width: ${widthPercent}%">${month.name}</div>`;
+        });
+        headerHtml += `</div>`;
+        
+        // Tạo các hàng Gantt
+        let rowsHtml = `<div class="gantt-rows">`;
+        
+        for (const milestone of milestones) {
+            const milestoneDate = new Date(milestone.milestone_date);
+            const daysFromStart = Math.ceil((milestoneDate - ganttStartDate) / (1000 * 60 * 60 * 24));
+            const leftPercent = (daysFromStart / totalDays) * 100;
+            
+            // Mỗi milestone hiển thị dưới dạng 1 điểm (cột mốc)
+            rowsHtml += `
+                <div class="gantt-row" onclick="scrollToMilestone(${milestone.schedule_id})">
+                    <div class="gantt-label" title="${escapeHtml(milestone.milestone_name)}">
+                        ${getMilestoneIcon(milestone.milestone_type)} ${escapeHtml(milestone.milestone_name)}
+                        <span style="font-size: 11px; color: #666; display: block;">
+                            ${new Date(milestone.milestone_date).toLocaleDateString()}
+                        </span>
+                    </div>
+                    <div class="gantt-bars">
+                        <div class="gantt-bar ${milestone.status}" 
+                             style="left: ${leftPercent}%; width: 2%; min-width: 60px;"
+                             title="${escapeHtml(milestone.milestone_name)} - ${new Date(milestone.milestone_date).toLocaleDateString()}">
+                            📍 ${milestone.actual_progress || 0}%
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        rowsHtml += `</div>`;
+        
+        // Thêm đường "Hôm nay"
+        const today = new Date();
+        let todayLineHtml = '';
+        if (today >= ganttStartDate && today <= ganttEndDate) {
+            const todayDaysFromStart = Math.ceil((today - ganttStartDate) / (1000 * 60 * 60 * 24));
+            const todayLeftPercent = (todayDaysFromStart / totalDays) * 100;
+            todayLineHtml = `<div class="gantt-today-line" style="left: ${todayLeftPercent}%"></div>`;
+        }
+        
+        container.innerHTML = `
+            ${headerHtml}
+            <div style="position: relative;">
+                ${todayLineHtml}
+                ${rowsHtml}
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error("Error rendering Gantt chart:", error);
+        const container = document.getElementById("ganttChart");
+        if (container) {
+            container.innerHTML = '<div class="error-state">❌ Lỗi tải biểu đồ Gantt</div>';
+        }
+    }
+}
+
+// Zoom Gantt
+function zoomGantt(direction) {
+    if (direction === 'in') {
+        ganttZoomLevel = Math.min(ganttZoomLevel * 1.5, 4);
+    } else {
+        ganttZoomLevel = Math.max(ganttZoomLevel / 1.5, 0.5);
+    }
+    renderGanttChart();
+}
+
+function resetGanttView() {
+    ganttZoomLevel = 1;
+    renderGanttChart();
+}
+
+
+
+
+
 // ==================== CẬP NHẬT DỰ ÁN ====================
 async function updateProjectStatus() {
     const newStatus = document.getElementById("projectStatus")?.value;
@@ -1811,6 +2370,10 @@ function setupEventListeners() {
 
     const addEstimateBtn = document.getElementById("addEstimateBtn");
     if (addEstimateBtn) addEstimateBtn.onclick = showAddCostEstimateModal;
+
+
+    const addMilestoneBtn = document.getElementById("addMilestoneBtn");
+    if (addMilestoneBtn) addMilestoneBtn.onclick = showAddMilestoneModal;
     
     // Click outside modal to close
     window.onclick = (e) => {
@@ -1824,6 +2387,9 @@ function setupEventListeners() {
         const costEstimateModal = document.getElementById("costEstimateModal");
         const editCostEstimateModal = document.getElementById("editCostEstimateModal");
         const confirmDeleteCostEstimateModal = document.getElementById("confirmDeleteCostEstimateModal");
+        const milestoneModal = document.getElementById("milestoneModal");
+        const editMilestoneModal = document.getElementById("editMilestoneModal");
+        const confirmDeleteMilestoneModal = document.getElementById("confirmDeleteMilestoneModal");
         
         if (e.target === memberModal) closeMemberModal();
         if (e.target === taskModal) closeTaskModal();
@@ -1835,6 +2401,9 @@ function setupEventListeners() {
         if (e.target === costEstimateModal) closeCostEstimateModal();
         if (e.target === editCostEstimateModal) closeEditCostEstimateModal();
         if (e.target === confirmDeleteCostEstimateModal) closeConfirmDeleteCostEstimateModal();
+        if (e.target === milestoneModal) closeMilestoneModal();
+        if (e.target === editMilestoneModal) closeEditMilestoneModal();
+        if (e.target === confirmDeleteMilestoneModal) closeConfirmDeleteMilestoneModal();
     };
 }
 

@@ -4,6 +4,7 @@ from .project_member import ProjectMember
 from .task import Task
 from .expert_time_estimate import ExpertTimeEstimate
 from .cost_estimate import CostEstimate
+from .project_schedule import ProjectSchedule
 
 __all__ = [
     "User",
@@ -12,4 +13,5 @@ __all__ = [
     "Task",
     "ExpertTimeEstimate",
     "CostEstimate"
+    "ProjectSchedule"
 ]

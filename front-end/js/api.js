@@ -316,3 +316,26 @@ async function approveExpertTimeEstimate(estimateId, approverId) {
 async function rejectExpertTimeEstimate(estimateId, approverId) {
     return await apiRequest(`/expert-time-estimates/${estimateId}/reject?approver_id=${approverId}`, "PATCH");
 }
+
+
+
+
+
+
+
+// ==================== PROJECT SCHEDULE APIS ====================
+async function getProjectMilestones(projectId) {
+    return await apiRequest(`/project-schedule?project_id=${projectId}`);
+}
+
+async function createProjectMilestone(milestoneData) {
+    return await apiRequest("/project-schedule", "POST", milestoneData);
+}
+
+async function updateProjectMilestone(scheduleId, milestoneData) {
+    return await apiRequest(`/project-schedule/${scheduleId}`, "PUT", milestoneData);
+}
+
+async function deleteProjectMilestone(scheduleId) {
+    return await apiRequest(`/project-schedule/${scheduleId}`, "DELETE");
+}

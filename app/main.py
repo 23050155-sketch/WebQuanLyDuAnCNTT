@@ -15,7 +15,8 @@ from .routers import (
     project_members_router,
     tasks_router,
     expert_time_estimates_router,
-    cost_estimates_router
+    cost_estimates_router,
+    project_schedule_router
 )
 from .services import crud_user
 from .schemas import user as user_schemas
@@ -154,6 +155,7 @@ app.include_router(project_members_router)
 app.include_router(tasks_router)
 app.include_router(expert_time_estimates_router)
 app.include_router(cost_estimates_router)
+app.include_router(project_schedule_router)
 
 # ==================== RUN APP ====================
 if __name__ == "__main__":

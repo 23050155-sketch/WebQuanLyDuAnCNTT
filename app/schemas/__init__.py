@@ -20,4 +20,6 @@ __all__ = [
     "ExpertTimeEstimateResponse", "ExpertTimeEstimateUpdate",
     "CostEstimateBase", "CostEstimateCreate", 
     "CostEstimateResponse", "CostEstimateUpdate"
+    "ProjectScheduleBase", "ProjectScheduleCreate",  
+    "ProjectScheduleResponse", "ProjectScheduleUpdate"
 ]
