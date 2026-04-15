@@ -2268,20 +2268,7 @@ async function renderGanttChart() {
     }
 }
 
-// Zoom Gantt
-function zoomGantt(direction) {
-    if (direction === 'in') {
-        ganttZoomLevel = Math.min(ganttZoomLevel * 1.5, 4);
-    } else {
-        ganttZoomLevel = Math.max(ganttZoomLevel / 1.5, 0.5);
-    }
-    renderGanttChart();
-}
 
-function resetGanttView() {
-    ganttZoomLevel = 1;
-    renderGanttChart();
-}
 
 
 

@@ -1618,3 +1618,238 @@ input[type="range"] {
 
 
 
+/* ==================== TIMELINE CẢI TIẾN ==================== */
+.timeline-container {
+    margin-bottom: 30px;
+    overflow-x: auto;
+    padding: 20px 0;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px 15px 20px;
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 20px;
+}
+
+.timeline-header .timeline-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.timeline-header .timeline-progress {
+    background: #28a745;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.timeline {
+    display: flex;
+    align-items: flex-start;
+    min-width: 800px;
+    padding: 20px 20px 40px 20px;
+    position: relative;
+    background: white;
+    border-radius: 15px;
+    margin: 0 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.timeline-line {
+    position: absolute;
+    top: 35px;
+    left: 40px;
+    right: 40px;
+    height: 4px;
+    background: linear-gradient(90deg, #28a745, #17a2b8, #ffc107, #dc3545);
+    border-radius: 2px;
+    z-index: 0;
+}
+
+.timeline-node {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.timeline-node:hover {
+    transform: translateY(-8px);
+}
+
+/* Timeline Dot - Các trạng thái khác nhau */
+.timeline-dot {
+    width: 50px;
+    height: 50px;
+    background: white;
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    position: relative;
+    z-index: 2;
+}
+
+/* Hoàn thành */
+.timeline-node.completed .timeline-dot {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 3px #28a745;
+    color: white;
+}
+
+/* Đang thực hiện */
+.timeline-node.in_progress .timeline-dot {
+    background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 3px #17a2b8;
+    color: white;
+    animation: timelinePulse 1.5s infinite;
+}
+
+@keyframes timelinePulse {
+    0% { box-shadow: 0 0 0 0 rgba(23, 162, 184, 0.4); }
+    70% { box-shadow: 0 0 0 12px rgba(23, 162, 184, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(23, 162, 184, 0); }
+}
+
+/* Trễ hạn */
+.timeline-node.delayed .timeline-dot {
+    background: linear-gradient(135deg, #dc3545, #f86c6b);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 3px #dc3545;
+    color: white;
+    animation: timelineShake 0.5s ease;
+}
+
+@keyframes timelineShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
+
+/* Đang chờ */
+.timeline-node.pending .timeline-dot {
+    background: linear-gradient(135deg, #6c757d, #adb5bd);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 3px #6c757d;
+    color: white;
+}
+
+/* Đã hủy */
+.timeline-node.cancelled .timeline-dot {
+    background: linear-gradient(135deg, #343a40, #495057);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 3px #343a40;
+    color: white;
+    opacity: 0.6;
+}
+
+/* Timeline Date */
+.timeline-date {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+}
+
+/* Timeline Title */
+.timeline-title {
+    font-weight: bold;
+    font-size: 13px;
+    color: #333;
+    max-width: 120px;
+    margin: 0 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: white;
+    padding: 4px 8px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Timeline Progress Badge */
+.timeline-progress-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-top: 8px;
+    background: #e9ecef;
+    color: #495057;
+}
+
+.timeline-node.completed .timeline-progress-badge {
+    background: #28a745;
+    color: white;
+}
+
+.timeline-node.in_progress .timeline-progress-badge {
+    background: #17a2b8;
+    color: white;
+}
+
+/* Tooltip cho timeline */
+.timeline-node {
+    position: relative;
+}
+
+.timeline-node .timeline-tooltip {
+    visibility: hidden;
+    background: #333;
+    color: #fff;
+    text-align: center;
+    padding: 6px 12px;
+    border-radius: 8px;
+    position: absolute;
+    z-index: 10;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 12px;
+    margin-bottom: 10px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.timeline-node .timeline-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+.timeline-node:hover .timeline-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
