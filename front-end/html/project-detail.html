@@ -108,34 +108,47 @@
 
     <!-- Tab Lịch trình công việc -->
     <div id="taskScheduleTab" class="tab-content">
-        <div class="section-header">
-            <h2>📅 Lịch trình công việc</h2>
-            <button id="addTaskScheduleBtn" class="btn-small">+ Thêm lịch trình</button>
+        <div class="task-schedule-container">
+            <div class="section-header">
+                <h2>📅 Lịch trình công việc</h2>
+                <button id="addTaskScheduleBtn" class="btn-small">+ Thêm lịch trình</button>
+            </div>
+            
+            <!-- Bộ lọc -->
+            <div class="schedule-filters">
+                <select id="filterTaskScheduleUser" class="filter-select">
+                    <option value="all">👥 Tất cả thành viên</option>
+                </select>
+                <select id="filterTaskScheduleWeek" class="filter-select">
+                    <option value="current">📅 Tuần này</option>
+                    <option value="next">📅 Tuần sau</option>
+                    <option value="all">📅 Tất cả</option>
+                </select>
+                <input type="date" id="filterTaskScheduleDate" class="filter-date" placeholder="Chọn ngày">
+                <button onclick="applyScheduleFilters()" class="btn-small">🔍 Lọc</button>
+                <button onclick="resetTaskScheduleFilter()" class="btn-small">🔄 Reset</button>
+            </div>
+            
+            <!-- Lịch dạng bảng -->
+            <div class="calendar-nav">
+                <div class="calendar-nav-buttons">
+                    <button class="calendar-nav-btn" onclick="changeWeek(-1)">◀ Tuần trước</button>
+                    <button class="calendar-nav-btn" onclick="changeWeek(1)">Tuần sau ▶</button>
+                </div>
+                <span class="calendar-week-range" id="calendarWeekRange">Tuần hiện tại</span>
+                <button class="calendar-nav-btn" onclick="resetToCurrentWeek()">📅 Hôm nay</button>
+            </div>
+            
+            <div id="calendarView" style="overflow-x: auto;">
+                <table class="calendar-table" id="calendarTable">
+                    <thead id="calendarHeader"></thead>
+                    <tbody id="calendarBody"></tbody>
+                </table>
+            </div>
+            
+            <!-- Danh sách dạng card (mobile) -->
+            <div id="taskScheduleList" class="task-schedule-list"></div>
         </div>
-        
-        <!-- Bộ lọc -->
-        <div class="schedule-filters">
-            <select id="filterTaskScheduleUser" class="filter-select">
-                <option value="all">👥 Tất cả thành viên</option>
-            </select>
-            <select id="filterTaskScheduleWeek" class="filter-select">
-                <option value="current">📅 Tuần này</option>
-                <option value="next">📅 Tuần sau</option>
-                <option value="all">📅 Tất cả</option>
-            </select>
-            <input type="date" id="filterTaskScheduleDate" placeholder="Chọn ngày">
-            <button onclick="filterTaskSchedule()" class="btn-small">🔍 Lọc</button>
-            <button onclick="resetTaskScheduleFilter()" class="btn-small">🔄 Reset</button>
-        </div>
-        
-        <!-- Lịch dạng bảng -->
-        <div class="task-schedule-calendar">
-            <div id="taskScheduleHeader" class="calendar-header"></div>
-            <div id="taskScheduleGrid" class="calendar-grid"></div>
-        </div>
-        
-        <!-- Danh sách lịch trình -->
-        <div id="taskScheduleList" class="task-schedule-list"></div>
     </div>
 
 
@@ -188,7 +201,7 @@
                         <textarea id="taskDesc" rows="3" placeholder="Mô tả chi tiết công việc"></textarea>
                     </div>
                     <div class="form-group">
-                        <label>Người thực hiện (có thể chọn nhiều)</label>
+                        <label>Người thực hiện</label>
                         <select id="taskAssignees" multiple size="4" style="height: auto; min-height: 100px;">
                             <!-- Danh sách thành viên sẽ được load bằng JS -->
                         </select>
@@ -242,7 +255,7 @@
                         <textarea id="editTaskDesc" rows="3" placeholder="Mô tả chi tiết công việc"></textarea>
                     </div>
                     <div class="form-group">
-                        <label>Người thực hiện (có thể chọn nhiều)</label>
+                        <label>Người thực hiện</label>
                         <select id="editTaskAssignees" multiple size="4" style="height: auto; min-height: 100px;">
                             <!-- Danh sách thành viên sẽ được load bằng JS -->
                         </select>

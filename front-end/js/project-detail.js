@@ -2299,8 +2299,8 @@ function canDeleteTaskSchedule() {
 // ==================== LỊCH TRÌNH CÔNG VIỆC ====================
 let currentEditingTaskSchedule = null;
 let pendingDeleteTaskSchedule = null;
+let currentCalendarDate = new Date();
 
-// Load danh sách lịch trình công việc
 // Load danh sách lịch trình công việc
 async function loadTaskSchedules() {
     try {
@@ -2372,19 +2372,30 @@ async function loadTaskSchedules() {
     }
 }
 
-// Hiển thị lịch dạng bảng
-// Hiển thị lịch dạng bảng - HỖ TRỢ NHIỀU LỊCH TRÌNH TRONG CÙNG MỘT NGÀY
-async function renderTaskScheduleCalendar(schedules, taskMap, userMap) {
+
+
+// Hiển thị lịch dạng bảng - Hỗ trợ nhiều lịch trình và lọc theo tuần
+async function renderTaskScheduleCalendar(schedules, taskMap, userMap, startDate = null) {
     const calendarContainer = document.getElementById("taskScheduleGrid");
     const headerContainer = document.getElementById("taskScheduleHeader");
     
     if (!calendarContainer) return;
     
-    // Lấy các ngày trong tuần hiện tại
-    const today = new Date();
-    const currentDay = today.getDay();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - currentDay + (currentDay === 0 ? -6 : 1));
+    // Xác định ngày bắt đầu tuần
+    let startOfWeek;
+    if (startDate) {
+        startOfWeek = new Date(startDate);
+        // Điều chỉnh về đầu tuần
+        const day = startOfWeek.getDay();
+        startOfWeek.setDate(startOfWeek.getDate() - day + (day === 0 ? -6 : 1));
+    } else {
+        startOfWeek = new Date(currentCalendarDate);
+        const day = startOfWeek.getDay();
+        startOfWeek.setDate(startOfWeek.getDate() - day + (day === 0 ? -6 : 1));
+    }
+    
+    // Lưu lại ngày hiện tại
+    currentCalendarDate = startOfWeek;
     
     const weekDays = [];
     for (let i = 0; i < 7; i++) {
@@ -2393,15 +2404,26 @@ async function renderTaskScheduleCalendar(schedules, taskMap, userMap) {
         weekDays.push(date);
     }
     
-    // Tạo header
+    // Tạo header với nút điều hướng tuần
+    const weekStartStr = weekDays[0].toLocaleDateString('vi-VN');
+    const weekEndStr = weekDays[6].toLocaleDateString('vi-VN');
+    
     headerContainer.innerHTML = `
-        <div class="calendar-header-cell">Thành viên</div>
-        ${weekDays.map(day => `
-            <div class="calendar-header-cell">
-                ${day.toLocaleDateString('vi-VN', { weekday: 'short' })}<br>
-                ${day.toLocaleDateString('vi-VN')}
-            </div>
-        `).join('')}
+        <div class="calendar-nav">
+            <button onclick="changeWeek(-1)" class="btn-icon" title="Tuần trước">◀</button>
+            <span class="calendar-week-range">${weekStartStr} - ${weekEndStr}</span>
+            <button onclick="changeWeek(1)" class="btn-icon" title="Tuần sau">▶</button>
+            <button onclick="resetToCurrentWeek()" class="btn-icon" title="Tuần hiện tại">📅 Hôm nay</button>
+        </div>
+        <div class="calendar-header">
+            <div class="calendar-header-cell">Thành viên</div>
+            ${weekDays.map(day => `
+                <div class="calendar-header-cell">
+                    ${day.toLocaleDateString('vi-VN', { weekday: 'short' })}<br>
+                    ${day.toLocaleDateString('vi-VN')}
+                </div>
+            `).join('')}
+        </div>
     `;
     
     // Nhóm schedules theo user
@@ -2432,7 +2454,6 @@ async function renderTaskScheduleCalendar(schedules, taskMap, userMap) {
             let cellContent = '';
             
             if (daySchedules.length > 0) {
-                // Hiển thị nhiều lịch trình
                 cellContent = `
                     <div class="calendar-cell-content">
                         ${daySchedules.map(schedule => `
@@ -2460,6 +2481,33 @@ async function renderTaskScheduleCalendar(schedules, taskMap, userMap) {
     calendarContainer.innerHTML = gridHtml;
 }
 
+// Chuyển tuần
+function changeWeek(delta) {
+    const newDate = new Date(currentCalendarDate);
+    newDate.setDate(currentCalendarDate.getDate() + delta * 7);
+    currentCalendarDate = newDate;
+    
+    // Cập nhật bộ lọc tuần
+    const weekFilter = document.getElementById("filterTaskScheduleWeek");
+    if (weekFilter) weekFilter.value = 'custom';
+    
+    // Reload lại lịch trình với tuần mới
+    applyScheduleFilters();
+}
+
+// Reset về tuần hiện tại
+function resetToCurrentWeek() {
+    currentCalendarDate = new Date();
+    
+    // Cập nhật bộ lọc
+    const weekFilter = document.getElementById("filterTaskScheduleWeek");
+    if (weekFilter) weekFilter.value = 'current';
+    const dateFilter = document.getElementById("filterTaskScheduleDate");
+    if (dateFilter) dateFilter.value = '';
+    
+    applyScheduleFilters();
+}
+
 // Cập nhật bộ lọc
 async function updateScheduleFilters(members, userMap) {
     const userFilter = document.getElementById("filterTaskScheduleUser");
@@ -2473,6 +2521,7 @@ async function updateScheduleFilters(members, userMap) {
 
 // Lọc lịch trình
 // Lọc lịch trình
+// Lọc lịch trình và cập nhật calendar
 async function filterTaskSchedule() {
     const userId = document.getElementById("filterTaskScheduleUser").value;
     const weekFilter = document.getElementById("filterTaskScheduleWeek").value;
@@ -2480,37 +2529,32 @@ async function filterTaskSchedule() {
     
     let schedules = await getTaskSchedules(currentProjectCode);
     
+    // Lọc theo user
     if (userId !== 'all') {
         schedules = schedules.filter(s => s.user_id == userId);
     }
     
+    // Lọc theo ngày hoặc tuần
+    let filteredSchedules = schedules;
+    let calendarStartDate = null;
+    
     if (dateFilter) {
-        schedules = schedules.filter(s => s.start_date <= dateFilter && s.end_date >= dateFilter);
+        // Lọc theo ngày cụ thể
+        filteredSchedules = schedules.filter(s => s.start_date <= dateFilter && s.end_date >= dateFilter);
+        calendarStartDate = new Date(dateFilter);
     } else if (weekFilter === 'current') {
-        const today = new Date();
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay() + 1);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        schedules = schedules.filter(s => {
-            const start = new Date(s.start_date);
-            const end = new Date(s.end_date);
-            return (start <= endOfWeek && end >= startOfWeek);
-        });
+        // Tuần hiện tại
+        calendarStartDate = new Date();
     } else if (weekFilter === 'next') {
-        const today = new Date();
-        const startOfNextWeek = new Date(today);
-        startOfNextWeek.setDate(today.getDate() - today.getDay() + 8);
-        const endOfNextWeek = new Date(startOfNextWeek);
-        endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
-        schedules = schedules.filter(s => {
-            const start = new Date(s.start_date);
-            const end = new Date(s.end_date);
-            return (start <= endOfNextWeek && end >= startOfNextWeek);
-        });
+        // Tuần sau
+        calendarStartDate = new Date();
+        calendarStartDate.setDate(calendarStartDate.getDate() + 7);
+    } else if (weekFilter === 'custom') {
+        // Tuần tùy chỉnh (từ nút điều hướng)
+        calendarStartDate = currentCalendarDate;
     }
     
-    // Hiển thị lại danh sách đã lọc
+    // Hiển thị lại danh sách dạng card
     const tasks = await getProjectTasks(currentProjectCode);
     const users = await getUsers();
     const taskMap = new Map();
@@ -2519,9 +2563,112 @@ async function filterTaskSchedule() {
     users.forEach(user => userMap.set(user.user_id, user));
     
     const container = document.getElementById("taskScheduleList");
-    const canEdit = canManageTaskSchedule();
+    const canEdit = canEditTaskSchedule();
     
-    if (schedules.length === 0) {
+    if (filteredSchedules.length === 0) {
+        container.innerHTML = '<div class="empty-state">📅 Không có lịch trình nào phù hợp</div>';
+    } else {
+        container.innerHTML = filteredSchedules.map(schedule => {
+            const task = taskMap.get(schedule.task_id);
+            const user = userMap.get(schedule.user_id);
+            return `
+                <div class="task-schedule-card">
+                    <div class="task-schedule-info">
+                        <span class="task-name">📋 ${task?.task_name || `Task #${schedule.task_id}`}</span>
+                        <span class="user-name">👤 ${user?.fullname || `User #${schedule.user_id}`}</span>
+                        <div class="schedule-date">📅 ${new Date(schedule.start_date).toLocaleDateString('vi-VN')} → ${new Date(schedule.end_date).toLocaleDateString('vi-VN')}</div>
+                    </div>
+                    <div class="task-schedule-hours">
+                        <div class="planned">⏱️ Dự kiến: ${schedule.scheduled_hours}h</div>
+                        <div class="actual">✅ Thực tế: ${schedule.actual_hours || 0}h</div>
+                    </div>
+                    ${canEdit ? `
+                        <div class="task-schedule-actions">
+                            <button onclick="showEditTaskScheduleModal(${schedule.schedule_id})" class="btn-icon" title="Sửa">✏️</button>
+                            <button onclick="showConfirmDeleteTaskScheduleModal(${schedule.schedule_id})" class="btn-icon btn-danger" title="Xóa">🗑️</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join("");
+    }
+    
+    // Cập nhật calendar với tuần tương ứng
+    await renderTaskScheduleCalendarWithFilters(schedules, calendarStartDate);
+}
+
+// Hàm riêng để render calendar với bộ lọc
+async function renderTaskScheduleCalendarWithFilters(allSchedules, startDate = null) {
+    // Lấy thông tin tasks và users
+    const tasks = await getProjectTasks(currentProjectCode);
+    const users = await getUsers();
+    
+    const taskMap = new Map();
+    tasks.forEach(task => taskMap.set(task.task_id, task));
+    const userMap = new Map();
+    users.forEach(user => userMap.set(user.user_id, user));
+    
+    // Áp dụng lọc theo user
+    const userId = document.getElementById("filterTaskScheduleUser").value;
+    let schedules = allSchedules;
+    if (userId !== 'all') {
+        schedules = schedules.filter(s => s.user_id == userId);
+    }
+    
+    // Render calendar
+    await renderTaskScheduleCalendar(schedules, taskMap, userMap, startDate);
+}
+
+// Hàm áp dụng tất cả bộ lọc
+async function applyScheduleFilters() {
+    const userId = document.getElementById("filterTaskScheduleUser").value;
+    const weekFilter = document.getElementById("filterTaskScheduleWeek").value;
+    const dateFilter = document.getElementById("filterTaskScheduleDate").value;
+    
+    let schedules = await getTaskSchedules(currentProjectCode);
+    
+    // Lọc theo user
+    if (userId !== 'all') {
+        schedules = schedules.filter(s => s.user_id == userId);
+    }
+    
+    // Xác định ngày bắt đầu cho calendar
+    let calendarStartDate = null;
+    
+    if (dateFilter) {
+        calendarStartDate = new Date(dateFilter);
+        // Lọc schedules theo ngày
+        schedules = schedules.filter(s => s.start_date <= dateFilter && s.end_date >= dateFilter);
+    } else if (weekFilter === 'current') {
+        calendarStartDate = new Date();
+    } else if (weekFilter === 'next') {
+        calendarStartDate = new Date();
+        calendarStartDate.setDate(calendarStartDate.getDate() + 7);
+    } else if (weekFilter === 'custom') {
+        calendarStartDate = currentCalendarDate;
+    }
+    
+    // Lấy thông tin tasks và users
+    const tasks = await getProjectTasks(currentProjectCode);
+    const users = await getUsers();
+    const taskMap = new Map();
+    tasks.forEach(task => taskMap.set(task.task_id, task));
+    const userMap = new Map();
+    users.forEach(user => userMap.set(user.user_id, user));
+    
+    // Render calendar
+    await renderCalendarTable(schedules, taskMap, userMap, calendarStartDate);
+    
+    // Cập nhật danh sách dạng card
+    await updateScheduleCardList(schedules, taskMap, userMap);
+}
+
+// Cập nhật danh sách dạng card
+async function updateScheduleCardList(schedules, taskMap, userMap) {
+    const container = document.getElementById("taskScheduleList");
+    const canEdit = canEditTaskSchedule();
+    
+    if (!schedules || schedules.length === 0) {
         container.innerHTML = '<div class="empty-state">📅 Không có lịch trình nào phù hợp</div>';
         return;
     }
@@ -2531,11 +2678,9 @@ async function filterTaskSchedule() {
         const user = userMap.get(schedule.user_id);
         return `
             <div class="task-schedule-card">
-                <div class="task-schedule-info">
-                    <span class="task-name">📋 ${task?.task_name || `Task #${schedule.task_id}`}</span>
-                    <span class="user-name">👤 ${user?.fullname || `User #${schedule.user_id}`}</span>
-                    <div class="schedule-date">📅 ${new Date(schedule.start_date).toLocaleDateString('vi-VN')} → ${new Date(schedule.end_date).toLocaleDateString('vi-VN')}</div>
-                </div>
+                <div class="task-name">📋 ${task?.task_name || `Task #${schedule.task_id}`}</div>
+                <div class="user-name">👤 ${user?.fullname || `User #${schedule.user_id}`}</div>
+                <div class="schedule-date">📅 ${new Date(schedule.start_date).toLocaleDateString('vi-VN')} → ${new Date(schedule.end_date).toLocaleDateString('vi-VN')}</div>
                 <div class="task-schedule-hours">
                     <div class="planned">⏱️ Dự kiến: ${schedule.scheduled_hours}h</div>
                     <div class="actual">✅ Thực tế: ${schedule.actual_hours || 0}h</div>
@@ -2555,7 +2700,8 @@ function resetTaskScheduleFilter() {
     document.getElementById("filterTaskScheduleUser").value = 'all';
     document.getElementById("filterTaskScheduleWeek").value = 'current';
     document.getElementById("filterTaskScheduleDate").value = '';
-    loadTaskSchedules();
+    currentCalendarDate = new Date(); // Reset về tuần hiện tại
+    applyScheduleFilters();
 }
 
 // Hiển thị modal thêm lịch trình
@@ -2793,7 +2939,123 @@ async function executeDeleteTaskSchedule() {
 
 
 
-
+// Render calendar dạng table
+async function renderCalendarTable(schedules, taskMap, userMap, startDate = null) {
+    const headerContainer = document.getElementById("calendarHeader");
+    const bodyContainer = document.getElementById("calendarBody");
+    const weekRangeSpan = document.getElementById("calendarWeekRange");
+    
+    if (!headerContainer || !bodyContainer) return;
+    
+    // Xác định ngày bắt đầu tuần
+    let startOfWeek;
+    if (startDate) {
+        startOfWeek = new Date(startDate);
+        const day = startOfWeek.getDay();
+        startOfWeek.setDate(startOfWeek.getDate() - day + (day === 0 ? -6 : 1));
+    } else {
+        startOfWeek = new Date(currentCalendarDate);
+        const day = startOfWeek.getDay();
+        startOfWeek.setDate(startOfWeek.getDate() - day + (day === 0 ? -6 : 1));
+    }
+    
+    currentCalendarDate = startOfWeek;
+    
+    const weekDays = [];
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(startOfWeek);
+        date.setDate(startOfWeek.getDate() + i);
+        weekDays.push(date);
+    }
+    
+    // Cập nhật header
+    const weekStartStr = weekDays[0].toLocaleDateString('vi-VN');
+    const weekEndStr = weekDays[6].toLocaleDateString('vi-VN');
+    weekRangeSpan.textContent = `${weekStartStr} - ${weekEndStr}`;
+    
+    // Tạo header
+    let headerHtml = '<tr>';
+    headerHtml += '<th>Thành viên</th>';
+    weekDays.forEach(day => {
+        headerHtml += `
+            <th>
+                <div class="day-name">${day.toLocaleDateString('vi-VN', { weekday: 'short' })}</div>
+                <div class="day-date">${day.toLocaleDateString('vi-VN')}</div>
+            </th>
+        `;
+    });
+    headerHtml += '</tr>';
+    headerContainer.innerHTML = headerHtml;
+    
+    // Nhóm schedules theo user
+    const schedulesByUser = new Map();
+    schedules.forEach(schedule => {
+        if (!schedulesByUser.has(schedule.user_id)) {
+            schedulesByUser.set(schedule.user_id, []);
+        }
+        schedulesByUser.get(schedule.user_id).push(schedule);
+    });
+    
+    // Lấy danh sách users để hiển thị đầy đủ
+    const allUsers = await getUsers();
+    const userRoleMap = new Map();
+    const members = await getProjectMembers(currentProjectCode);
+    members.forEach(m => userRoleMap.set(m.user_id, m.role_in_project));
+    
+    // Tạo body
+    let bodyHtml = '';
+    for (const user of allUsers) {
+        // Chỉ hiển thị user có trong project
+        if (!userRoleMap.has(user.user_id)) continue;
+        
+        const userSchedules = schedulesByUser.get(user.user_id) || [];
+        const role = userRoleMap.get(user.user_id);
+        
+        bodyHtml += `<tr>`;
+        bodyHtml += `
+            <td class="user-cell">
+                <div class="user-name">${user.fullname}</div>
+                <div class="user-role">${getRoleName(role)}</div>
+            </td>
+        `;
+        
+        for (const day of weekDays) {
+            const dayStr = day.toISOString().split('T')[0];
+            const isToday = day.toDateString() === new Date().toDateString();
+            
+            const daySchedules = userSchedules.filter(s => 
+                s.start_date <= dayStr && s.end_date >= dayStr
+            );
+            
+            let cellContent = '';
+            if (daySchedules.length > 0) {
+                cellContent = `
+                    <div class="schedule-items">
+                        ${daySchedules.map(schedule => `
+                            <div class="schedule-item" onclick="showEditTaskScheduleModal(${schedule.schedule_id})">
+                                <div class="schedule-item-task">📋 ${taskMap.get(schedule.task_id)?.task_name?.substring(0, 15) || `Task #${schedule.task_id}`}</div>
+                                <div class="schedule-item-hours">⏱️ ${schedule.scheduled_hours}h</div>
+                                ${schedule.actual_hours > 0 ? `<div class="schedule-item-actual">✅ ${schedule.actual_hours}h</div>` : ''}
+                                <div class="schedule-item-date">📅 ${schedule.start_date} → ${schedule.end_date}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                cellContent = `<div class="empty-cell">—</div>`;
+            }
+            
+            bodyHtml += `
+                <td class="schedule-cell ${isToday ? 'today' : ''}">
+                    ${cellContent}
+                </td>
+            `;
+        }
+        bodyHtml += `</tr>`;
+    }
+    
+    bodyContainer.innerHTML = bodyHtml;
+}
 
 
 // ==================== CẬP NHẬT DỰ ÁN ====================

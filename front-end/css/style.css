@@ -2117,3 +2117,341 @@ input[type="range"] {
         font-size: 9px;
     }
 }
+
+
+
+
+/* Calendar navigation */
+.calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    background: white;
+    border-radius: 8px;
+}
+
+.calendar-week-range {
+    font-weight: bold;
+    color: #333;
+    font-size: 14px;
+}
+
+.calendar-header {
+    display: flex;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px 10px 0 0;
+}
+
+.calendar-header-cell {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    font-weight: bold;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+
+
+
+
+
+/* ==================== LỊCH TRÌNH CÔNG VIỆC CẢI TIẾN ==================== */
+.task-schedule-container {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Bộ lọc */
+.schedule-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.filter-select, .filter-date {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.filter-select:focus, .filter-date:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* Calendar header với điều hướng */
+.calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    margin-bottom: 15px;
+    background: white;
+    border-radius: 8px;
+}
+
+.calendar-nav-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.calendar-nav-btn {
+    padding: 6px 12px;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.calendar-nav-btn:hover {
+    background: #667eea;
+    color: white;
+}
+
+.calendar-week-range {
+    font-weight: bold;
+    color: #333;
+    font-size: 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 6px 16px;
+    border-radius: 20px;
+    color: white;
+}
+
+/* Calendar bảng */
+.calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.calendar-table th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 14px 8px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.calendar-table th .day-name {
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+.calendar-table th .day-date {
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+.calendar-table td {
+    border: 1px solid #e0e0e0;
+    vertical-align: top;
+    padding: 0;
+    min-width: 120px;
+}
+
+.calendar-table .user-cell {
+    background: #f8f9fa;
+    font-weight: bold;
+    text-align: center;
+    vertical-align: middle;
+    width: 120px;
+    position: sticky;
+    left: 0;
+    background: #f8f9fa;
+    border-right: 2px solid #e0e0e0;
+}
+
+.calendar-table .user-cell .user-name {
+    font-size: 14px;
+    color: #333;
+}
+
+.calendar-table .user-cell .user-role {
+    font-size: 11px;
+    color: #666;
+    margin-top: 4px;
+}
+
+/* Cell nội dung */
+.schedule-cell {
+    min-height: 100px;
+    padding: 8px;
+    background: white;
+    transition: all 0.2s;
+}
+
+.schedule-cell.today {
+    background: #fff3cd;
+    position: relative;
+}
+
+.schedule-cell.today::before {
+    content: "Hôm nay";
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 9px;
+    background: #ffc107;
+    padding: 2px 6px;
+    border-radius: 10px;
+    color: #333;
+}
+
+.schedule-cell:hover {
+    background: #f0f8ff;
+}
+
+/* Schedule item trong cell */
+.schedule-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.schedule-item {
+    background: #e9ecef;
+    border-radius: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 3px solid #667eea;
+}
+
+.schedule-item:hover {
+    background: #dee2e6;
+    transform: translateX(2px);
+}
+
+.schedule-item-task {
+    font-size: 11px;
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.schedule-item-hours {
+    font-size: 10px;
+    color: #28a745;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+.schedule-item-actual {
+    font-size: 10px;
+    color: #17a2b8;
+    margin-top: 2px;
+}
+
+.schedule-item-date {
+    font-size: 9px;
+    color: #999;
+    margin-top: 4px;
+}
+
+.empty-cell {
+    color: #ccc;
+    text-align: center;
+    padding: 20px 8px;
+    font-size: 12px;
+}
+
+/* Danh sách dạng card (mobile) */
+.task-schedule-list {
+    margin-top: 20px;
+    display: none;
+}
+
+.task-schedule-card {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #667eea;
+}
+
+.task-schedule-card .task-name {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.task-schedule-card .user-name {
+    font-size: 12px;
+    color: #666;
+    margin-left: 8px;
+}
+
+.task-schedule-card .schedule-date {
+    font-size: 11px;
+    color: #999;
+    margin-top: 6px;
+}
+
+.task-schedule-hours {
+    margin-top: 8px;
+    display: flex;
+    gap: 16px;
+}
+
+.task-schedule-hours .planned {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.task-schedule-hours .actual {
+    color: #17a2b8;
+    font-size: 12px;
+}
+
+.task-schedule-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .calendar-table {
+        display: none;
+    }
+    
+    .task-schedule-list {
+        display: block;
+    }
+    
+    .schedule-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .calendar-nav {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
